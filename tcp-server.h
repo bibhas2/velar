@@ -45,7 +45,7 @@ struct ByteBuffer {
 		}
 	}
 
-	void put(char* from, size_t offset, size_t length) {
+	void put(const char* from, size_t offset, size_t length) {
 		if (length > remaining()) {
 			throw std::out_of_range("Insufficient space remaining.");
 		}
@@ -159,7 +159,12 @@ struct Socket {
 		return io_flag.test(IOFlag::IS_WRITABLE);
 	}
 
+	bool is_acceptable() {
+		return is_server() && is_readable();
+	}
+
 	int read(ByteBuffer& b);
+	int write(ByteBuffer& b);
 
 	bool operator<(const Socket& other) const {
 		return fd < other.fd;

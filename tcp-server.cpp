@@ -224,7 +224,7 @@ int Socket::read(ByteBuffer& b) {
         b.array + b.position,
         b.remaining());
 
-    if (bytes_read == SOCKET_ERROR) {
+    if (bytes_read < 0) {
         if (errno != EAGAIN && errno != EWOULDBLOCK) {
             throw std::runtime_error("read() failed.");
         }
@@ -240,10 +240,57 @@ int Socket::read(ByteBuffer& b) {
     b.position += bytes_read;
 }
 
+
+int Socket::write(ByteBuffer& b) {
+    if (!b.has_remaining()) {
+        throw std::runtime_error("Buffer is empty.");
+    }
+
+#ifdef _WIN32
+    int bytes_written = ::send(
+        fd,
+        b.array + b.position,
+        b.remaining(),
+        0);
+
+    if (bytes_written == SOCKET_ERROR) {
+        int err = ::WSAGetLastError();
+
+        if (err == WSAECONNRESET) {
+            //Ungraceful disconnect
+            return 0;
+        }
+
+        if (err != WSAEWOULDBLOCK) {
+            throw std::runtime_error("recv() failed.");
+        }
+    }
+#else
+    int bytes_written = ::write(
+        fd,
+        b.array + b.position,
+        b.remaining());
+
+    if (bytes_written < 0) {
+        if (errno != EAGAIN && errno != EWOULDBLOCK) {
+            throw std::runtime_error("read() failed.");
+        }
+    }
+#endif
+
+    if (bytes_written == 0) {
+        //Client disconnected gracefully
+        return 0;
+    }
+
+    //Forward the position
+    b.position += bytes_written;
+}
+
 int main()
 {
     Selector sel;
-    ByteBuffer buff(128);
+    ByteBuffer in_buff(128), out_buff(128);
 
     sel.start_server(9080, nullptr);
 
@@ -251,29 +298,42 @@ int main()
         sel.select();
 
         for (auto s : sel.sockets) {
-            if (s->is_readable()) {
-                if (s->is_server()) {
-                    auto client = sel.accept(s, nullptr);
+            if (s->is_acceptable()) {
+                auto client = sel.accept(s, nullptr);
 
-                    client->report_readable(true);
+                const char* reply = "START SENDING\r\n";
 
-                    std::cout << "Client connected" << std::endl;
+                out_buff.clear();
+                out_buff.put(reply, 0, strlen(reply));
+                out_buff.flip();
+
+                client->report_writable(true);
+
+                std::cout << "Client connected" << std::endl;
+            }
+            else if (s->is_readable()) {
+                in_buff.clear();
+
+                int sz = s->read(in_buff);
+
+                if (sz == 0) {
+                    std::cout << "Client disconnected" << std::endl;
+
+                    sel.cancel_socket(s);
                 }
                 else {
-                    buff.clear();
+                    in_buff.flip();
 
-                    int sz = s->read(buff);
-
-                    if (sz == 0) {
-                        std::cout << "Client disconnected" << std::endl;
-
-                        sel.cancel_socket(s);
-                    }
-                    else {
-                        buff.flip();
-
-                        std::cout.write(buff.array, buff.limit);
-                    }
+                    std::cout.write(in_buff.array, in_buff.limit);
+                }
+            }
+            else if (s->is_writable()) {
+                if (out_buff.has_remaining()) {
+                    s->write(out_buff);
+                }
+                else {
+                    s->report_writable(false);
+                    s->report_readable(true);
                 }
             }
         }
