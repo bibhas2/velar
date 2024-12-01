@@ -216,7 +216,7 @@ void Selector::select(long timeout) {
     }
 }
 
-void Selector::cancel_socket(std::shared_ptr<Socket>& socket) {
+void Selector::cancel_socket(std::shared_ptr<Socket> socket) {
     canceled_sockets.insert(socket);
 }
 
@@ -347,7 +347,7 @@ int main()
     while (keep_running) {
         sel.select();
 
-        for (auto s : sel.sockets) {
+        for (auto& s : sel.sockets) {
             if (s->is_acceptable()) {
                 auto client = sel.accept(s, nullptr);
 
@@ -383,7 +383,7 @@ int main()
                         keep_running = false;
                     }
                     else if (sv == "list\n") {
-                        for (auto s2 : sel.sockets) {
+                        for (auto& s2 : sel.sockets) {
                             std::cout
                                 << "Type: "
                                 << (s2->is_server() ? "Server" : "Client")

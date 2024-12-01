@@ -161,5 +161,5 @@ public:
 	std::shared_ptr<Socket> start_server(int port, std::unique_ptr<SocketAttachment> attachment);
 	std::shared_ptr<Socket> accept(std::shared_ptr<Socket> server, std::unique_ptr<SocketAttachment> attachment);
 	void select(long timeout=0);
-	void cancel_socket(std::shared_ptr<Socket>& socket);
+	void cancel_socket(std::shared_ptr<Socket> socket);
 };
