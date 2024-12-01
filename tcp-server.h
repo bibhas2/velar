@@ -1,10 +1,9 @@
 #pragma once
 
 #include <stdexcept>
-#include <string.h>
-#include <memory>
 #include <bitset>
 #include <set>
+#include <string_view>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -21,48 +20,18 @@ struct ByteBuffer {
 	size_t limit;
 	bool owned;
 
-	ByteBuffer(size_t capacity) {
-		array = (char*) ::malloc(capacity);
-		this->capacity = capacity;
-		position = 0;
-		limit = capacity;
-		owned = true;
-	}
+	ByteBuffer(size_t capacity);
 
-	ByteBuffer(char* data, size_t length) {
-		array = data;
-		capacity = length;
-		position = 0;
-		limit = length;
-		owned = false;
-	}
+	ByteBuffer(char* data, size_t length);
 
-	~ByteBuffer() {
-		if (owned && array != NULL) {
-			free(array);
+	~ByteBuffer();
 
-			array = NULL;
-		}
-	}
+	void put(const char* from, size_t offset, size_t length);
 
-	void put(const char* from, size_t offset, size_t length) {
-		if (length > remaining()) {
-			throw std::out_of_range("Insufficient space remaining.");
-		}
+	void put(char byte);
 
-		::memcpy(array + position, from + offset, length);
-
-		position += length;
-	}
-
-	void put(char byte) {
-		if (!has_remaining()) {
-			throw std::out_of_range("Insufficient space remaining.");
-		}
-
-		array[position] = byte;
-
-		++position;
+	std::string_view to_string_view() {
+		return std::string_view(array + position, remaining());
 	}
 
 	size_t remaining() {

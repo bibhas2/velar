@@ -4,6 +4,51 @@
 #include <iostream>
 #include "tcp-server.h"
 
+ByteBuffer::ByteBuffer(size_t capacity) {
+    array = (char*) ::malloc(capacity);
+    this->capacity = capacity;
+    position = 0;
+    limit = capacity;
+    owned = true;
+}
+
+ByteBuffer::ByteBuffer(char* data, size_t length) {
+    array = data;
+    capacity = length;
+    position = 0;
+    limit = length;
+    owned = false;
+}
+
+ByteBuffer::~ByteBuffer() {
+    if (owned && array != NULL) {
+        free(array);
+
+        array = NULL;
+    }
+}
+
+void ByteBuffer::put(const char* from, size_t offset, size_t length) {
+    if (length > remaining()) {
+        throw std::out_of_range("Insufficient space remaining.");
+    }
+
+    ::memcpy(array + position, from + offset, length);
+
+    position += length;
+}
+
+void ByteBuffer::put(char byte) {
+    if (!has_remaining()) {
+        throw std::out_of_range("Insufficient space remaining.");
+    }
+
+    array[position] = byte;
+
+    ++position;
+}
+
+
 static void set_nonblocking(SOCKET socket) {
 #ifdef _WIN32
     u_long non_block = 1;
@@ -238,6 +283,8 @@ int Socket::read(ByteBuffer& b) {
 
     //Forward the position
     b.position += bytes_read;
+
+    return bytes_read;
 }
 
 
@@ -285,16 +332,19 @@ int Socket::write(ByteBuffer& b) {
 
     //Forward the position
     b.position += bytes_written;
+
+    return bytes_written;
 }
 
 int main()
 {
     Selector sel;
     ByteBuffer in_buff(128), out_buff(128);
+    bool keep_running = true;
 
     sel.start_server(9080, nullptr);
 
-    while (true) {
+    while (keep_running) {
         sel.select();
 
         for (auto s : sel.sockets) {
@@ -324,7 +374,30 @@ int main()
                 else {
                     in_buff.flip();
 
-                    std::cout.write(in_buff.array, in_buff.limit);
+                    auto sv = in_buff.to_string_view();
+
+                    if (sv == "quit\n") {
+                        sel.cancel_socket(s);
+                    }
+                    else if (sv == "shutdown\n") {
+                        keep_running = false;
+                    }
+                    else if (sv == "list\n") {
+                        for (auto s2 : sel.sockets) {
+                            std::cout
+                                << "Type: "
+                                << (s2->is_server() ? "Server" : "Client")
+                                << " Report readable: "
+                                << (s2->is_report_readable() ? "Yes" : "No")
+                                << " Report writable: "
+                                << (s2->is_report_writable() ? "Yes" : "No")
+                                << " Is readable: "
+                                << (s2->is_readable() ? "Yes" : "No")
+                                << " Is writable: "
+                                << (s2->is_writable() ? "Yes" : "No")
+                                << std::endl;
+                        }
+                    }
                 }
             }
             else if (s->is_writable()) {
