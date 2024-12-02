@@ -349,6 +349,25 @@ Socket::~Socket() {
     }
 }
 
+/*
+* Reads data from this socket into the supplied ByteBuffer.
+* Upon a successful read the position of the buffer is incremented but limit remains unchanged.
+* Before you retrieve data from the buffer you should call flip().
+* 
+* When you try to read from a socket many things can happen. Winsock and BSD socket deal with
+* these situations slightly differently. Here we normalize the situations by returning an 
+* uniform value for both platforms. Here are the possible cases:
+* 
+* - Read was successful. In this case, the number of bytes read, a positive number, is returned.
+* - An attempted read would lead to blocking. In this case 0 is returned.
+* - The other party has disconnected gracefully, meaning they have closed their end of the socket. In this
+* case a negative value is returned.
+* - The other party has disconnected ungracefully, meaning somehow the connection was severed. In this case,
+* we return a negative value.
+* 
+* If a negative value is returned, then applications should treat the socket as unusuable. 
+* They should cancel the socket.
+*/
 int Socket::read(ByteBuffer& b) {
     if (!b.has_remaining()) {
         throw std::runtime_error("Buffer is full.");
@@ -416,7 +435,27 @@ int Socket::read(ByteBuffer& b) {
     return bytes_read;
 }
 
-
+/*
+* Writes any remaining data from this socket into the supplied ByteBuffer.
+* Upon a successful write the position of the buffer is incremented but the limit remains unchanged.
+* This way, the buffer keeps track of how much data was sent and how much is yet to be sent.
+* In a nonblocking socket it is common that not all the data can be sent at the same time.
+* You can call write() for the same buffer repetedly until all the data is fully sent.
+*
+* When you try to write to a socket many things can happen. Winsock and BSD socket deal with
+* these situations slightly differently. Here we normalize the situations by returning an
+* uniform value for both platforms. Here are the possible cases:
+*
+* - Write was successful. In this case, the number of bytes written, a positive number, is returned.
+* - An attempted write would lead to blocking. In this case 0 is returned.
+* - The other party has disconnected gracefully, meaning they have closed their end of the socket. In this
+* case a negative value is returned.
+* - The other party has disconnected ungracefully, meaning somehow the connection was severed. In this case,
+* we return a negative value.
+*
+* If a negative value is returned, then applications should treat the socket as unusuable.
+* They should cancel the socket.
+*/
 int Socket::write(ByteBuffer& b) {
     if (!b.has_remaining()) {
         throw std::runtime_error("Buffer is empty.");
