@@ -4,6 +4,12 @@
 #include <iostream>
 #include "tcp-server.h"
 
+#ifdef _WIN32
+//These are needed by IPV6
+#include <ws2tcpip.h>
+#pragma comment(lib, "ws2_32.lib")
+#endif
+
 ByteBuffer::ByteBuffer(size_t capacity) {
     array = (char*) ::malloc(capacity);
     this->capacity = capacity;
@@ -70,6 +76,7 @@ static void set_nonblocking(SOCKET socket) {
 static void check_socket_error(int status, const char* msg) {
 #ifdef _WIN32
     if (status == SOCKET_ERROR) {
+        std::cout << WSAGetLastError() << std::endl;
         throw std::runtime_error(msg);
     }
 #else
@@ -83,7 +90,7 @@ static void check_socket_error(int status, const char* msg) {
 std::shared_ptr<Socket> Selector::start_server(int port, std::unique_ptr<SocketAttachment> attachment) {
     int status;
 
-    SOCKET sock = ::socket(PF_INET, SOCK_STREAM, 0);
+    SOCKET sock = ::socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
 
     if (sock == INVALID_SOCKET) {
         throw std::runtime_error("Failed to create a socket.");
@@ -94,14 +101,21 @@ std::shared_ptr<Socket> Selector::start_server(int port, std::unique_ptr<SocketA
     char reuse = 1;
 
     ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof reuse);
+    
+    /*
+    * This will allow IPV4 mapped addresses.
+    */
+    int optval = 0;
+    
+    ::setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&optval, sizeof(optval));
 
-    struct sockaddr_in addr;
+    struct sockaddr_in6 addr {}; //Important to zero out the address
 
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(port);
+    addr.sin6_family = AF_INET6;
+    addr.sin6_addr = ::in6addr_any;
+    addr.sin6_port = htons(port);
 
-    status = bind(sock, (struct sockaddr*)&addr, sizeof(addr));
+    status = ::bind(sock, (struct sockaddr*) &addr, sizeof(addr));
 
     check_socket_error(status, "Failed to bind to port.");
 
@@ -114,6 +128,7 @@ std::shared_ptr<Socket> Selector::start_server(int port, std::unique_ptr<SocketA
     server->fd = sock;
     server->socket_type = Socket::SocketType::SERVER;
     server->attachment = std::move(attachment);
+
     //Turn this on since all servers will need to catch accept event
     server->report_readable(true);
 
@@ -349,6 +364,8 @@ int main()
 
         for (auto& s : sel.sockets) {
             if (s->is_acceptable()) {
+                std::cout << "Client connected" << std::endl;
+
                 auto client = sel.accept(s, nullptr);
 
                 const char* reply = "START SENDING\r\n";
@@ -359,7 +376,6 @@ int main()
 
                 client->report_writable(true);
 
-                std::cout << "Client connected" << std::endl;
             }
             else if (s->is_readable()) {
                 in_buff.clear();
