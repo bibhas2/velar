@@ -76,7 +76,6 @@ static void set_nonblocking(SOCKET socket) {
 static void check_socket_error(int status, const char* msg) {
 #ifdef _WIN32
     if (status == SOCKET_ERROR) {
-        std::cout << WSAGetLastError() << std::endl;
         throw std::runtime_error(msg);
     }
 #else
@@ -86,6 +85,77 @@ static void check_socket_error(int status, const char* msg) {
 #endif
 }
 
+void free_addrinfo(struct addrinfo* p) {
+    if (p != NULL) {
+        freeaddrinfo(p);
+    }
+}
+
+std::shared_ptr<Socket> Selector::start_client(const char* address, int port, std::unique_ptr<SocketAttachment> attachment) {
+    char port_str[128];
+
+    snprintf(port_str, sizeof(port_str), "%d", port);
+
+    struct addrinfo hints {}, *res{};
+
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+
+    int status = ::getaddrinfo(address, port_str, &hints, &res);
+
+    if (status < 0) {
+        throw std::runtime_error("Failed to resolve address.");
+    }
+
+    /*
+    * Use RAII to free the address.
+    */
+    auto addr_resource = std::unique_ptr<struct addrinfo, void(*)(struct addrinfo*)>(res, free_addrinfo);
+
+    SOCKET sock = ::socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+
+    if (sock == INVALID_SOCKET) {
+        throw std::runtime_error("Failed to create a socket.");
+    }
+
+    set_nonblocking(sock);
+
+    status = ::connect(sock, res->ai_addr, res->ai_addrlen);
+
+    /*
+    * It is normal for a nonblocking socket to not complete connection immediately.
+    * This is indicated by an error but we should not abort.
+    * 
+    * Checking for incomplete connection differes in Winsock than BSD socket.
+    */
+    if (status < 0) {
+#ifdef _WIN32
+        auto err = ::WSAGetLastError();
+
+        if (err != WSAEWOULDBLOCK) {
+            ::closesocket(sock);
+
+            throw std::runtime_error("Failed to connect.");
+        }
+#else
+        if (err != EINPROGRESS) {
+            ::close(sock);
+
+            throw std::runtime_error("Failed to connect.");
+        }
+#endif
+    }
+
+    auto client = std::make_shared<Socket>();
+
+    client->fd = sock;
+    client->socket_type = Socket::SocketType::CLIENT;
+    client->attachment = std::move(attachment);
+
+    sockets.insert(client);
+
+    return client;
+}
 
 std::shared_ptr<Socket> Selector::start_server(int port, std::unique_ptr<SocketAttachment> attachment) {
     int status;
@@ -179,7 +249,7 @@ void Selector::purge_sokets() {
     canceled_sockets.clear();
 }
 
-void Selector::select(long timeout) {
+int Selector::select(long timeout) {
     fd_set read_fd_set, write_fd_set;
     struct timeval t;
 
@@ -202,7 +272,7 @@ void Selector::select(long timeout) {
         int status = ::WSAGetLastError();
 
         if (status == WSAEINTR || status == WSAEINPROGRESS) {
-            return;
+            return num_events;
         }
         else {
             throw std::runtime_error("select() failed.");
@@ -212,7 +282,7 @@ void Selector::select(long timeout) {
     if (num_events < 0) {
         if (errno == EINTR) {
             //A signal was handled
-            return;
+            return num_events;
         }
         else {
             throw std::runtime_error("select() failed.");
@@ -222,13 +292,15 @@ void Selector::select(long timeout) {
 
     if (num_events == 0) {
         //Timeout
-        return;
+        return num_events;
     }
 
     for (auto& s : sockets) {
         s->set_readable((FD_ISSET(s->fd, &read_fd_set)));
         s->set_writable((FD_ISSET(s->fd, &write_fd_set)));
     }
+
+    return num_events;
 }
 
 void Selector::cancel_socket(std::shared_ptr<Socket> socket) {
@@ -357,6 +429,76 @@ int main()
     ByteBuffer in_buff(128), out_buff(128);
     bool keep_running = true;
 
+    auto client = sel.start_client("www.example.com", 80, nullptr);
+
+    client->report_writable(true);
+    bool request_sent = false;
+
+    while (keep_running) {
+        int n = sel.select(5);
+
+        if (n == 0) {
+            //Timeout
+            std::cout << "\nTimeout detected" << std::endl;
+            return 0;
+        }
+
+        for (auto& s : sel.sockets) {
+            if (s->is_writable()) {
+                if (!request_sent) {
+                    const char* request = "GET / HTTP/1.1\r\n"
+                        "Host: www.example.com\r\n"
+                        "Accept: */*\r\n\r\n";
+
+                    out_buff.clear();
+                    out_buff.put(request, 0, strlen(request));
+                    out_buff.flip();
+
+                    request_sent = true;
+                }
+
+                if (out_buff.has_remaining()) {
+                    s->write(out_buff);
+                }
+                else {
+                    //Stop writing
+                    s->report_writable(false);
+                    //Start reading
+                    s->report_readable(true);
+                }
+            }
+            else if (s->is_readable()) {
+                in_buff.clear();
+
+                //Read whatever is available
+                int sz = s->read(in_buff);
+
+                if (sz == 0) {
+                    std::cout << "\nClient disconnected\n" << std::endl;
+
+                    sel.cancel_socket(s);
+                }
+                else {
+                    in_buff.flip();
+
+                    auto sv = in_buff.to_string_view();
+
+                    std::cout << sv;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+#ifdef DONOTCOMPILE
+int main()
+{
+    Selector sel;
+    ByteBuffer in_buff(128), out_buff(128);
+    bool keep_running = true;
+
     sel.start_server(9080, nullptr);
 
     while (keep_running) {
@@ -430,3 +572,4 @@ int main()
 
     return 0;
 }
+#endif
