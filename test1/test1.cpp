@@ -36,7 +36,13 @@ int main()
                 }
 
                 if (out_buff.has_remaining()) {
-                    s->write(out_buff);
+                    int sz = s->write(out_buff);
+
+                    if (sz < 0) {
+                        std::cout << "\nClient disconnected\n" << std::endl;
+
+                        sel.cancel_socket(s);
+                    }
                 }
                 else {
                     //Stop writing
@@ -51,12 +57,12 @@ int main()
                 //Read as much as available
                 int sz = s->read(in_buff);
 
-                if (sz == 0) {
+                if (sz < 0) {
                     std::cout << "\nClient disconnected\n" << std::endl;
 
                     sel.cancel_socket(s);
                 }
-                else {
+                else if (sz > 0) {
                     in_buff.flip();
 
                     auto sv = in_buff.to_string_view();
