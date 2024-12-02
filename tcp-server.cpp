@@ -1,6 +1,3 @@
-// tcp-server.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
-
 #include <iostream>
 #include "tcp-server.h"
 
@@ -8,6 +5,27 @@
 //These are needed by IPV6
 #include <ws2tcpip.h>
 #pragma comment(lib, "ws2_32.lib")
+
+/*
+* Use RAII to initialize winsock. Any application using this library won't have to 
+* worry about that.
+*/
+class WSInit {
+public:
+    WSInit() {
+        WSADATA wsa;
+
+        if (::WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+            throw std::runtime_error("WSAStartup() failed.");
+        }
+    }
+    ~WSInit() {
+        ::WSACleanup();
+    }
+};
+
+static WSInit __wsa_init;
+
 #endif
 
 ByteBuffer::ByteBuffer(size_t capacity) {
@@ -103,7 +121,12 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
 
     int status = ::getaddrinfo(address, port_str, &hints, &res);
 
-    if (status < 0) {
+    /*
+    * getaddrinfo() is strange in a way since it may return a positive 
+    * value in case of an error. Any non-zero value indicates an error.
+    */
+    if (status != 0 || res == NULL) {
+        std::cout << "Socket error: " << status << std::endl;
         throw std::runtime_error("Failed to resolve address.");
     }
 
@@ -423,74 +446,6 @@ int Socket::write(ByteBuffer& b) {
     return bytes_written;
 }
 
-int main()
-{
-    Selector sel;
-    ByteBuffer in_buff(128), out_buff(128);
-    bool keep_running = true;
-
-    auto client = sel.start_client("www.example.com", 80, nullptr);
-
-    client->report_writable(true);
-    bool request_sent = false;
-
-    while (keep_running) {
-        int n = sel.select(5);
-
-        if (n == 0) {
-            //Timeout
-            std::cout << "\nTimeout detected" << std::endl;
-            return 0;
-        }
-
-        for (auto& s : sel.sockets) {
-            if (s->is_writable()) {
-                if (!request_sent) {
-                    const char* request = "GET / HTTP/1.1\r\n"
-                        "Host: www.example.com\r\n"
-                        "Accept: */*\r\n\r\n";
-
-                    out_buff.clear();
-                    out_buff.put(request, 0, strlen(request));
-                    out_buff.flip();
-
-                    request_sent = true;
-                }
-
-                if (out_buff.has_remaining()) {
-                    s->write(out_buff);
-                }
-                else {
-                    //Stop writing
-                    s->report_writable(false);
-                    //Start reading
-                    s->report_readable(true);
-                }
-            }
-            else if (s->is_readable()) {
-                in_buff.clear();
-
-                //Read whatever is available
-                int sz = s->read(in_buff);
-
-                if (sz == 0) {
-                    std::cout << "\nClient disconnected\n" << std::endl;
-
-                    sel.cancel_socket(s);
-                }
-                else {
-                    in_buff.flip();
-
-                    auto sv = in_buff.to_string_view();
-
-                    std::cout << sv;
-                }
-            }
-        }
-    }
-
-    return 0;
-}
 
 #ifdef DONOTCOMPILE
 int main()

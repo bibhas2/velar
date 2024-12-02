@@ -15,12 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="tcp-server.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="tcp-server.cpp">
+    <ClCompile Include="test1.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
