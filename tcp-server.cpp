@@ -338,6 +338,11 @@ int Selector::select(long timeout) {
             * Test for connect() completion status.
             */
 #ifdef _WIN32
+            /*
+            * It appears that both write fd set and except fd set are set for 
+            * the socket for a successful connection. We must test for the
+            * write fd set before except fd set to determine success.
+            */
             if (FD_ISSET(s->fd, &write_fd_set)) {
                 s->set_connection_success(true);
                 s->set_connection_pending(false);
