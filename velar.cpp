@@ -25,7 +25,11 @@ public:
 };
 
 static WSInit __wsa_init;
-
+#else
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 #endif
 
 ByteBuffer::ByteBuffer(size_t capacity) {
@@ -83,9 +87,9 @@ static void set_nonblocking(SOCKET socket) {
         throw std::runtime_error("Failed to make socket non-blocking.");
     }
 #else
-    int status = fcntl(sock, F_SETFL, O_NONBLOCK);
+    int status = ::fcntl(socket, F_SETFL, O_NONBLOCK);
 
-    if (status < != NO_ERROR> 0) {
+    if (status < 0) {
         throw std::runtime_error("Failed to make socket non-blocking.");
     }
 #endif
@@ -149,7 +153,7 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
     * It is normal for a nonblocking socket to not complete connection immediately.
     * This is indicated by an error but we should not abort.
     * 
-    * Checking for incomplete connection differes in Winsock than BSD socket.
+    * Checking for in progress connection differes between Winsock and BSD socket.
     */
     if (status < 0) {
 #ifdef _WIN32
@@ -161,7 +165,7 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
             throw std::runtime_error("Failed to connect.");
         }
 #else
-        if (err != EINPROGRESS) {
+        if (errno != EINPROGRESS) {
             ::close(sock);
 
             throw std::runtime_error("Failed to connect.");

@@ -4,6 +4,8 @@
 #include <bitset>
 #include <set>
 #include <string_view>
+#include <memory>
+#include <cstring>
 
 #ifdef _WIN32
 #include <winsock2.h>
