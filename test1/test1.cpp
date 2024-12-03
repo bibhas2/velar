@@ -7,7 +7,7 @@ int main()
     ByteBuffer in_buff(128), out_buff(128);
     bool keep_running = true;
 
-    auto client = sel.start_client("www.example.com", 80, nullptr);
+    sel.start_client("www.example.com", 80, nullptr);
 
     while (keep_running) {
         int n = sel.select(10);
@@ -37,7 +37,7 @@ int main()
                 out_buff.flip();
 
                 //Start writing the request
-                client->report_writable(true);
+                s->report_writable(true);
             }
             else if (s->is_writable()) {
                 if (out_buff.has_remaining()) {
