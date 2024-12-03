@@ -19,10 +19,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="tcp-server.h" />
+    <ClInclude Include="velar.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="tcp-server.cpp" />
+    <ClCompile Include="velar.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

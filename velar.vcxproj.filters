@@ -15,12 +15,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="tcp-server.h">
+    <ClInclude Include="velar.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="tcp-server.cpp">
+    <ClCompile Include="velar.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
