@@ -72,7 +72,10 @@ struct Socket {
 		REPORT_READABLE,
 		REPORT_WRITABLE,
 		IS_READABLE,
-		IS_WRITABLE
+		IS_WRITABLE,
+		IS_CONN_PENDING,
+		IS_CONN_FAILED,
+		IS_CONN_SUCCESS
 	};
 
 	enum SocketType {
@@ -81,7 +84,7 @@ struct Socket {
 	};
 
 	SOCKET fd;
-	std::bitset<4> io_flag;
+	std::bitset<7> io_flag;
 	std::unique_ptr<SocketAttachment> attachment;
 	SocketType socket_type;
 
@@ -132,6 +135,30 @@ struct Socket {
 		return is_server() && is_readable();
 	}
 
+	void set_connection_pending(bool flag) {
+		io_flag.set(IOFlag::IS_CONN_PENDING, flag);
+	}
+
+	bool is_connection_pending() {
+		return io_flag.test(IOFlag::IS_CONN_PENDING);
+	}
+
+	void set_connection_failed(bool flag) {
+		io_flag.set(IOFlag::IS_CONN_FAILED, flag);
+	}
+
+	bool is_connection_failed() {
+		return io_flag.test(IOFlag::IS_CONN_FAILED);
+	}
+
+	void set_connection_success(bool flag) {
+		io_flag.set(IOFlag::IS_CONN_SUCCESS, flag);
+	}
+
+	bool is_connection_success() {
+		return io_flag.test(IOFlag::IS_CONN_SUCCESS);
+	}
+
 	int read(ByteBuffer& b);
 	int write(ByteBuffer& b);
 
@@ -151,7 +178,7 @@ struct Socket {
 struct Selector {
 private:
 	void purge_sokets();
-	void populate_fd_set(fd_set& read_fd_set, fd_set& write_fd_set);
+	void populate_fd_set(fd_set& read_fd_set, fd_set& write_fd_set, fd_set& except_fd_set);
 
 public:
 	std::set<std::shared_ptr<Socket>> sockets;

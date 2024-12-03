@@ -9,11 +9,8 @@ int main()
 
     auto client = sel.start_client("www.example.com", 80, nullptr);
 
-    client->report_writable(true);
-    bool request_sent = false;
-
     while (keep_running) {
-        int n = sel.select(5);
+        int n = sel.select(10);
 
         if (n == 0) {
             //Timeout
@@ -22,19 +19,27 @@ int main()
         }
 
         for (auto& s : sel.sockets) {
-            if (s->is_writable()) {
-                if (!request_sent) {
-                    const char* request = "GET / HTTP/1.1\r\n"
-                        "Host: www.example.com\r\n"
-                        "Accept: */*\r\n\r\n";
+            if (s->is_connection_failed()) {
+                std::cout << "Connection failed." << std::endl;
 
-                    out_buff.clear();
-                    out_buff.put(request, 0, strlen(request));
-                    out_buff.flip();
+                keep_running = false;
+            }
+            else if (s->is_connection_success()) {
+                std::cout << "Connection success." << std::endl;
 
-                    request_sent = true;
-                }
+                //Prepare the request
+                const char* request = "GET / HTTP/1.1\r\n"
+                    "Host: www.example.com\r\n"
+                    "Accept: */*\r\n\r\n";
 
+                out_buff.clear();
+                out_buff.put(request, 0, strlen(request));
+                out_buff.flip();
+
+                //Start writing the request
+                client->report_writable(true);
+            }
+            else if (s->is_writable()) {
                 if (out_buff.has_remaining()) {
                     int sz = s->write(out_buff);
 

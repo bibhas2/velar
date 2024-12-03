@@ -174,6 +174,7 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
     client->fd = sock;
     client->socket_type = Socket::SocketType::CLIENT;
     client->attachment = std::move(attachment);
+    client->set_connection_pending(true);
 
     sockets.insert(client);
 
@@ -250,9 +251,10 @@ std::shared_ptr<Socket> Selector::accept(std::shared_ptr<Socket> server, std::un
     return client;
 }
 
-void Selector::populate_fd_set(fd_set& read_fd_set, fd_set& write_fd_set) {
+void Selector::populate_fd_set(fd_set& read_fd_set, fd_set& write_fd_set, fd_set& except_fd_set) {
     FD_ZERO(&read_fd_set);
     FD_ZERO(&write_fd_set);
+    FD_ZERO(&except_fd_set);
 
     for (auto& s : sockets) {
         if (s->is_report_readable()) {
@@ -260,6 +262,18 @@ void Selector::populate_fd_set(fd_set& read_fd_set, fd_set& write_fd_set) {
         }
         if (s->is_report_writable()) {
             FD_SET(s->fd, &write_fd_set);
+        }
+        if (s->is_connection_pending()) {
+            /*
+            * Detecting connect() completion status is platform dependent.
+            * In Winsock, we use exception fd set for error and write fd set for success. 
+            * In BSD socket, we query writable event and then test for SO_ERROR.
+            */
+#ifdef _WIN32
+            FD_SET(s->fd, &except_fd_set);
+#endif
+            FD_SET(s->fd, &write_fd_set);
+
         }
     }
 }
@@ -273,7 +287,7 @@ void Selector::purge_sokets() {
 }
 
 int Selector::select(long timeout) {
-    fd_set read_fd_set, write_fd_set;
+    fd_set read_fd_set, write_fd_set, except_fd_set;
     struct timeval t;
 
     t.tv_sec = timeout;
@@ -281,7 +295,7 @@ int Selector::select(long timeout) {
 
     purge_sokets();
 
-    populate_fd_set(read_fd_set, write_fd_set);
+    populate_fd_set(read_fd_set, write_fd_set, except_fd_set);
 
     int num_events = ::select(
         FD_SETSIZE,
@@ -319,8 +333,49 @@ int Selector::select(long timeout) {
     }
 
     for (auto& s : sockets) {
-        s->set_readable((FD_ISSET(s->fd, &read_fd_set)));
-        s->set_writable((FD_ISSET(s->fd, &write_fd_set)));
+        if (s->is_connection_pending()) {
+            /*
+            * Test for connect() completion status.
+            */
+#ifdef _WIN32
+            if (FD_ISSET(s->fd, &write_fd_set)) {
+                s->set_connection_success(true);
+                s->set_connection_pending(false);
+            }
+            else if ((FD_ISSET(s->fd, &except_fd_set))) {
+                //connect() has failed
+                s->set_connection_failed(true);
+                s->set_connection_pending(false);
+            }
+#else
+            if (FD_ISSET(s->fd, &write_fd_set)) {
+                int valopt;
+                socklen_t lon = sizeof(int);
+
+                if (::getsockopt(s->fd, SOL_SOCKET, SO_ERROR, (void*)(&valopt), &lon) < 0) {
+                    throw std::runtime_error("Error in getsockopt().");
+                }
+
+                if (valopt) {
+                    s->set_connection_failed(true);
+                    s->set_connection_pending(false);
+                }
+                else {
+                    s->set_connection_success(true);
+                    s->set_connection_pending(false);
+                }
+            }
+#endif
+            if (s->is_connection_pending()) {
+                //This should not happen.
+                throw std::runtime_error("Invalid state.");
+            }
+        }
+        else {
+            s->set_connection_success(false);
+            s->set_readable((FD_ISSET(s->fd, &read_fd_set)));
+            s->set_writable((FD_ISSET(s->fd, &write_fd_set)));
+        }
     }
 
     return num_events;
