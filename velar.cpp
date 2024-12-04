@@ -120,7 +120,18 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
 
     struct addrinfo hints {}, *res{};
 
-    hints.ai_family = AF_INET;
+    /*
+    * We take a numeric port number and not a 
+    * service name like "http" or "ftp" for port.
+    * This will tell getaddrinfo() not to do any
+    * service name resolution making it slightly faster.
+    */
+    hints.ai_flags = AI_NUMERICSERV;
+    /*
+    * This will cause getaddrinfo() to return both ipv4 and ipv6
+    * address if available.
+    */
+    hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
     int status = ::getaddrinfo(address, port_str, &hints, &res);
@@ -130,12 +141,20 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
     * value in case of an error. Any non-zero value indicates an error.
     */
     if (status != 0 || res == NULL) {
-        std::cout << "Socket error: " << status << std::endl;
         throw std::runtime_error("Failed to resolve address.");
     }
 
     /*
-    * Use RAII to free the address.
+    * The addrinfo res object is a linked list. It has all
+    * resolved addresses. For example, it will have both ipv4 and ipv6
+    * addresses if available. We can iterate through the addresses using res->next.
+    * Below, we go with the first address in the list, which can be either ipv4 or ipv6.
+    * A more robust implementation will try the next address (res->next) if
+    * connect() fails.
+    */
+
+    /*
+    * Use RAII to free the address. This makes the code below much simpler.
     */
     auto addr_resource = std::unique_ptr<struct addrinfo, void(*)(struct addrinfo*)>(res, free_addrinfo);
 
