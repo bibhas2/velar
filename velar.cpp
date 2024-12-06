@@ -204,7 +204,62 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
     return client;
 }
 
-std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv6(const char* ip, int port, std::unique_ptr<SocketAttachment> attachment) {
+std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv6(const char* group_ip, int port, std::unique_ptr<SocketAttachment> attachment) {
+    // Create a UDP socket
+    int sock = ::socket(AF_INET6, SOCK_DGRAM, 0);
+
+    if (sock == INVALID_SOCKET) {
+        throw std::runtime_error("Failed to create a socket.");
+    }
+
+    int on = 1;
+
+    int status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&on, sizeof(on));
+
+    check_socket_error(status, "Failed to set SO_REUSEADDR.");
+
+    // Join the multicast group
+    struct ipv6_mreq mreq {};
+
+    //Set the multicast group address
+    if (inet_pton(AF_INET6, group_ip, &mreq.ipv6mr_multiaddr) != 1) {
+        throw std::runtime_error("Failed to get IPV6 address.");
+    }
+
+    mreq.ipv6mr_interface = 0;
+
+    //Join the group
+    ::setsockopt(sock, IPPROTO_IPV6, IPV6_JOIN_GROUP, (const char*)&mreq, sizeof(mreq));
+
+    // Bind the socket to the multicast port
+    struct sockaddr_in6 addr {};
+
+    addr.sin6_family = AF_INET6;
+    addr.sin6_addr = in6addr_any;
+    addr.sin6_port = htons(port);
+
+    status = ::bind(sock, (const struct sockaddr*) &addr, sizeof(addr));
+
+    check_socket_error(status, "Failed to bind to port.");
+
+    auto receiver = std::make_shared<Socket>();
+
+    receiver->fd = sock;
+    receiver->socket_type = Socket::SocketType::CLIENT;
+    receiver->attachment = std::move(attachment);
+
+    //Turn this on since all receivers need to read
+    receiver->report_readable(true);
+
+    sockets.insert(receiver);
+
+    return receiver;
+}
+
+/*
+* Starts a UDP multicast receiver (server). 
+*/
+std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv4(const char* group_ip, int port, std::unique_ptr<SocketAttachment> attachment) {
     // Create a UDP socket
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -219,14 +274,16 @@ std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv6(const char* ip, 
     check_socket_error(status, "Failed to set SO_REUSEADDR.");
 
     // Join the multicast group
-    struct ip_mreq mreq;
+    struct ip_mreq mreq {};
 
-    if (inet_pton(AF_INET, ip, &mreq.imr_multiaddr.s_addr) != 1) {
+    //Set the multicast group address
+    if (inet_pton(AF_INET, group_ip, &mreq.imr_multiaddr.s_addr) != 1) {
         throw std::runtime_error("Failed to get address.");
     }
 
     mreq.imr_interface.s_addr = INADDR_ANY;
 
+    //Join the group
     ::setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, (const char*)  &mreq, sizeof(mreq));
 
     // Bind the socket to the multicast port

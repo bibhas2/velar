@@ -7,7 +7,7 @@ int main()
     ByteBuffer in_buff(1024 * 4);
     bool keep_running = true;
 
-    sel.start_multicast_receiver_ipv6("239.255.255.250", 1900, nullptr);
+    sel.start_multicast_receiver_ipv4("239.255.255.250", 1900, nullptr);
 
     while (keep_running) {
         sel.select();
