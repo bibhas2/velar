@@ -204,6 +204,56 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
     return client;
 }
 
+std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv6(const char* ip, int port, std::unique_ptr<SocketAttachment> attachment) {
+    // Create a UDP socket
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+
+    if (sock == INVALID_SOCKET) {
+        throw std::runtime_error("Failed to create a socket.");
+    }
+
+    int on = 1;
+
+    int status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*) &on, sizeof(on));
+
+    check_socket_error(status, "Failed to set SO_REUSEADDR.");
+
+    // Join the multicast group
+    struct ip_mreq mreq;
+
+    if (inet_pton(AF_INET, ip, &mreq.imr_multiaddr.s_addr) != 1) {
+        throw std::runtime_error("Failed to get address.");
+    }
+
+    mreq.imr_interface.s_addr = INADDR_ANY;
+
+    ::setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, (const char*)  &mreq, sizeof(mreq));
+
+    // Bind the socket to the multicast port
+    struct sockaddr_in addr {};
+
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port);
+
+    status = bind(sock, (const struct sockaddr*)&addr, sizeof(addr));
+
+    check_socket_error(status, "Failed to bind to port.");
+
+    auto receiver = std::make_shared<Socket>();
+
+    receiver->fd = sock;
+    receiver->socket_type = Socket::SocketType::CLIENT;
+    receiver->attachment = std::move(attachment);
+
+    //Turn this on since all receivers need to read
+    receiver->report_readable(true);
+
+    sockets.insert(receiver);
+
+    return receiver;
+}
+
 std::shared_ptr<Socket> Selector::start_server(int port, std::unique_ptr<SocketAttachment> attachment) {
     int status;
 
