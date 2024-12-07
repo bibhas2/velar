@@ -1,5 +1,14 @@
 #include <iostream>
 #include <velar.h>
+#include <memory>
+
+struct MyData : public SocketAttachment {
+    std::string type;
+
+    MyData(const char* t) : type(t) {
+
+    }
+};
 
 int main()
 {
@@ -7,13 +16,26 @@ int main()
     ByteBuffer in_buff(1024 * 4);
     bool keep_running = true;
 
-    sel.start_multicast_receiver_ipv4("239.255.255.250", 1900, nullptr);
+    /*
+    * Use netcat like this to send messages to this port.
+    * 
+    * nc -4u 2024
+    */
+    sel.start_udp_receiver_ipv4(2024, std::make_unique<MyData>("UDP"));
+
+    /*
+    * Many household routers will send multicast messages to this group
+    * IP and port.
+    */
+    sel.start_multicast_receiver_ipv4("239.255.255.250", 1900, std::make_unique<MyData>("UDP MULTICAST"));
 
     while (keep_running) {
         sel.select();
 
         for (auto& s : sel.sockets) {
             if (s->is_readable()) {
+                std::cout << "Messeage received by: " << ((MyData*)s->attachment.get())->type << std::endl;
+
                 in_buff.clear();
 
                 int sz = s->read(in_buff);

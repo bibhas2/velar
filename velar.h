@@ -186,6 +186,8 @@ public:
 	std::set<std::shared_ptr<Socket>> sockets;
 	std::set<std::shared_ptr<Socket>> canceled_sockets;
 
+	std::shared_ptr<Socket> start_udp_receiver_ipv6(int port, std::unique_ptr<SocketAttachment> attachment);
+	std::shared_ptr<Socket> start_udp_receiver_ipv4(int port, std::unique_ptr<SocketAttachment> attachment);
 	std::shared_ptr<Socket> start_multicast_receiver_ipv6(const char* group_address, int port, std::unique_ptr<SocketAttachment> attachment);
 	std::shared_ptr<Socket> start_multicast_receiver_ipv4(const char* group_address, int port, std::unique_ptr<SocketAttachment> attachment);
 	std::shared_ptr<Socket> start_server(int port, std::unique_ptr<SocketAttachment> attachment);

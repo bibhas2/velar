@@ -205,18 +205,7 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
 }
 
 std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv6(const char* group_ip, int port, std::unique_ptr<SocketAttachment> attachment) {
-    // Create a UDP socket
-    int sock = ::socket(AF_INET6, SOCK_DGRAM, 0);
-
-    if (sock == INVALID_SOCKET) {
-        throw std::runtime_error("Failed to create a socket.");
-    }
-
-    int on = 1;
-
-    int status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&on, sizeof(on));
-
-    check_socket_error(status, "Failed to set SO_REUSEADDR.");
+    auto receiver = start_udp_receiver_ipv6(port, std::move(attachment));
 
     // Join the multicast group
     struct ipv6_mreq mreq {};
@@ -229,7 +218,26 @@ std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv6(const char* grou
     mreq.ipv6mr_interface = 0;
 
     //Join the group
-    ::setsockopt(sock, IPPROTO_IPV6, IPV6_JOIN_GROUP, (const char*)&mreq, sizeof(mreq));
+    int status = ::setsockopt(receiver->fd, IPPROTO_IPV6, IPV6_JOIN_GROUP, (const char*)&mreq, sizeof(mreq));
+
+    check_socket_error(status, "Failed to join multicast group.");
+
+    return receiver;
+}
+
+std::shared_ptr<Socket> Selector::start_udp_receiver_ipv6(int port, std::unique_ptr<SocketAttachment> attachment) {
+    // Create a UDP socket
+    int sock = ::socket(AF_INET6, SOCK_DGRAM, 0);
+
+    if (sock == INVALID_SOCKET) {
+        throw std::runtime_error("Failed to create a socket.");
+    }
+
+    int on = 1;
+
+    int status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&on, sizeof(on));
+
+    check_socket_error(status, "Failed to set SO_REUSEADDR.");
 
     // Bind the socket to the multicast port
     struct sockaddr_in6 addr {};
@@ -260,18 +268,7 @@ std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv6(const char* grou
 * Starts a UDP multicast receiver (server). 
 */
 std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv4(const char* group_ip, int port, std::unique_ptr<SocketAttachment> attachment) {
-    // Create a UDP socket
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
-
-    if (sock == INVALID_SOCKET) {
-        throw std::runtime_error("Failed to create a socket.");
-    }
-
-    int on = 1;
-
-    int status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*) &on, sizeof(on));
-
-    check_socket_error(status, "Failed to set SO_REUSEADDR.");
+    auto receiver = start_udp_receiver_ipv4(port, std::move(attachment));
 
     // Join the multicast group
     struct ip_mreq mreq {};
@@ -284,7 +281,26 @@ std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv4(const char* grou
     mreq.imr_interface.s_addr = INADDR_ANY;
 
     //Join the group
-    ::setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, (const char*)  &mreq, sizeof(mreq));
+    int status = ::setsockopt(receiver->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (const char*)&mreq, sizeof(mreq));
+
+    check_socket_error(status, "Failed to join multicast group.");
+
+    return receiver;
+}
+
+std::shared_ptr<Socket> Selector::start_udp_receiver_ipv4(int port, std::unique_ptr<SocketAttachment> attachment) {
+    // Create a UDP socket
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+
+    if (sock == INVALID_SOCKET) {
+        throw std::runtime_error("Failed to create a socket.");
+    }
+
+    int on = 1;
+
+    int status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*) &on, sizeof(on));
+
+    check_socket_error(status, "Failed to set SO_REUSEADDR.");
 
     // Bind the socket to the multicast port
     struct sockaddr_in addr {};
