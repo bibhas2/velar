@@ -113,7 +113,7 @@ void free_addrinfo(struct addrinfo* p) {
     }
 }
 
-std::shared_ptr<Socket> Selector::start_client(const char* address, int port, std::unique_ptr<SocketAttachment> attachment) {
+std::shared_ptr<Socket> Selector::start_client(const char* address, int port, std::shared_ptr<SocketAttachment> attachment) {
     char port_str[128];
 
     snprintf(port_str, sizeof(port_str), "%d", port);
@@ -196,7 +196,7 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
 
     client->fd = sock;
     client->socket_type = Socket::SocketType::CLIENT;
-    client->attachment = std::move(attachment);
+    client->attachment = attachment;
     client->set_connection_pending(true);
 
     sockets.insert(client);
@@ -204,8 +204,8 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
     return client;
 }
 
-std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv6(const char* group_ip, int port, std::unique_ptr<SocketAttachment> attachment) {
-    auto receiver = start_udp_receiver_ipv6(port, std::move(attachment));
+std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv6(const char* group_ip, int port, std::shared_ptr<SocketAttachment> attachment) {
+    auto receiver = start_udp_receiver_ipv6(port, attachment);
 
     // Join the multicast group
     struct ipv6_mreq mreq {};
@@ -225,7 +225,7 @@ std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv6(const char* grou
     return receiver;
 }
 
-std::shared_ptr<Socket> Selector::start_udp_receiver_ipv6(int port, std::unique_ptr<SocketAttachment> attachment) {
+std::shared_ptr<Socket> Selector::start_udp_receiver_ipv6(int port, std::shared_ptr<SocketAttachment> attachment) {
     // Create a UDP socket
     int sock = ::socket(AF_INET6, SOCK_DGRAM, 0);
 
@@ -254,7 +254,7 @@ std::shared_ptr<Socket> Selector::start_udp_receiver_ipv6(int port, std::unique_
 
     receiver->fd = sock;
     receiver->socket_type = Socket::SocketType::CLIENT;
-    receiver->attachment = std::move(attachment);
+    receiver->attachment = attachment;
 
     //Turn this on since all receivers need to read
     receiver->report_readable(true);
@@ -267,8 +267,8 @@ std::shared_ptr<Socket> Selector::start_udp_receiver_ipv6(int port, std::unique_
 /*
 * Starts a UDP multicast receiver (server). 
 */
-std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv4(const char* group_ip, int port, std::unique_ptr<SocketAttachment> attachment) {
-    auto receiver = start_udp_receiver_ipv4(port, std::move(attachment));
+std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv4(const char* group_ip, int port, std::shared_ptr<SocketAttachment> attachment) {
+    auto receiver = start_udp_receiver_ipv4(port, attachment);
 
     // Join the multicast group
     struct ip_mreq mreq {};
@@ -288,7 +288,7 @@ std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv4(const char* grou
     return receiver;
 }
 
-std::shared_ptr<Socket> Selector::start_udp_receiver_ipv4(int port, std::unique_ptr<SocketAttachment> attachment) {
+std::shared_ptr<Socket> Selector::start_udp_receiver_ipv4(int port, std::shared_ptr<SocketAttachment> attachment) {
     // Create a UDP socket
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -317,7 +317,7 @@ std::shared_ptr<Socket> Selector::start_udp_receiver_ipv4(int port, std::unique_
 
     receiver->fd = sock;
     receiver->socket_type = Socket::SocketType::CLIENT;
-    receiver->attachment = std::move(attachment);
+    receiver->attachment = attachment;
 
     //Turn this on since all receivers need to read
     receiver->report_readable(true);
@@ -327,7 +327,7 @@ std::shared_ptr<Socket> Selector::start_udp_receiver_ipv4(int port, std::unique_
     return receiver;
 }
 
-std::shared_ptr<Socket> Selector::start_server(int port, std::unique_ptr<SocketAttachment> attachment) {
+std::shared_ptr<Socket> Selector::start_server(int port, std::shared_ptr<SocketAttachment> attachment) {
     int status;
 
     SOCKET sock = ::socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
@@ -367,7 +367,7 @@ std::shared_ptr<Socket> Selector::start_server(int port, std::unique_ptr<SocketA
 
     server->fd = sock;
     server->socket_type = Socket::SocketType::SERVER;
-    server->attachment = std::move(attachment);
+    server->attachment = attachment;
 
     //Turn this on since all servers will need to catch accept event
     server->report_readable(true);
@@ -377,7 +377,7 @@ std::shared_ptr<Socket> Selector::start_server(int port, std::unique_ptr<SocketA
     return server;
 }
 
-std::shared_ptr<Socket> Selector::accept(std::shared_ptr<Socket> server, std::unique_ptr<SocketAttachment> attachment) {
+std::shared_ptr<Socket> Selector::accept(std::shared_ptr<Socket> server, std::shared_ptr<SocketAttachment> attachment) {
     SOCKET client_fd = ::accept(server->fd, NULL, NULL);
 
     if (client_fd == INVALID_SOCKET) {
@@ -390,7 +390,7 @@ std::shared_ptr<Socket> Selector::accept(std::shared_ptr<Socket> server, std::un
 
     client->fd = client_fd;
     client->socket_type = Socket::SocketType::CLIENT;
-    client->attachment = std::move(attachment);
+    client->attachment = attachment;
 
     sockets.insert(client);
 

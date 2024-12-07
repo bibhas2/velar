@@ -87,7 +87,7 @@ struct Socket {
 
 	SOCKET fd;
 	std::bitset<7> io_flag;
-	std::unique_ptr<SocketAttachment> attachment;
+	std::shared_ptr<SocketAttachment> attachment;
 	SocketType socket_type;
 
 	Socket();
@@ -186,13 +186,13 @@ public:
 	std::set<std::shared_ptr<Socket>> sockets;
 	std::set<std::shared_ptr<Socket>> canceled_sockets;
 
-	std::shared_ptr<Socket> start_udp_receiver_ipv6(int port, std::unique_ptr<SocketAttachment> attachment);
-	std::shared_ptr<Socket> start_udp_receiver_ipv4(int port, std::unique_ptr<SocketAttachment> attachment);
-	std::shared_ptr<Socket> start_multicast_receiver_ipv6(const char* group_address, int port, std::unique_ptr<SocketAttachment> attachment);
-	std::shared_ptr<Socket> start_multicast_receiver_ipv4(const char* group_address, int port, std::unique_ptr<SocketAttachment> attachment);
-	std::shared_ptr<Socket> start_server(int port, std::unique_ptr<SocketAttachment> attachment);
-	std::shared_ptr<Socket> start_client(const char* address, int port, std::unique_ptr<SocketAttachment> attachment);
-	std::shared_ptr<Socket> accept(std::shared_ptr<Socket> server, std::unique_ptr<SocketAttachment> attachment);
+	std::shared_ptr<Socket> start_udp_receiver_ipv6(int port, std::shared_ptr<SocketAttachment> attachment);
+	std::shared_ptr<Socket> start_udp_receiver_ipv4(int port, std::shared_ptr<SocketAttachment> attachment);
+	std::shared_ptr<Socket> start_multicast_receiver_ipv6(const char* group_address, int port, std::shared_ptr<SocketAttachment> attachment);
+	std::shared_ptr<Socket> start_multicast_receiver_ipv4(const char* group_address, int port, std::shared_ptr<SocketAttachment> attachment);
+	std::shared_ptr<Socket> start_server(int port, std::shared_ptr<SocketAttachment> attachment);
+	std::shared_ptr<Socket> start_client(const char* address, int port, std::shared_ptr<SocketAttachment> attachment);
+	std::shared_ptr<Socket> accept(std::shared_ptr<Socket> server, std::shared_ptr<SocketAttachment> attachment);
 	int select(long timeout=0);
 	void cancel_socket(std::shared_ptr<Socket> socket);
 };
