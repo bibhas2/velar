@@ -626,7 +626,7 @@ DatagramSocket::~DatagramSocket() {
 }
 
 int DatagramSocket::sendto(ByteBuffer& b) {
-    return sendto(b, server_address->ai_addr, sizeof(*server_address->ai_addr));
+    return sendto(b, server_address->ai_addr, server_address->ai_addrlen);
 }
 
 /*
