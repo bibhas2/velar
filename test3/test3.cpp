@@ -21,13 +21,13 @@ int main()
     * 
     * nc -4u 2024
     */
-    sel.start_udp_receiver_ipv4(2024, std::make_shared<MyData>("UDP"));
+    sel.start_udp_server_ipv4(2024, std::make_shared<MyData>("UDP"));
 
     /*
     * Many household routers will send multicast messages to this group
     * IP and port.
     */
-    sel.start_multicast_receiver_ipv4("239.255.255.250", 1900, std::make_shared<MyData>("UDP MULTICAST"));
+    sel.start_multicast_server_ipv4("239.255.255.250", 1900, std::make_shared<MyData>("UDP MULTICAST"));
 
     while (keep_running) {
         sel.select();

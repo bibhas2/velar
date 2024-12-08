@@ -29,7 +29,7 @@ struct ByteBuffer {
 	~ByteBuffer();
 
 	void put(const char* from, size_t offset, size_t length);
-
+	void put(std::string_view);
 	void put(char byte);
 
 	std::string_view to_string_view() {
@@ -91,7 +91,7 @@ struct Socket {
 	SocketType socket_type;
 
 	Socket();
-	~Socket();
+	virtual ~Socket();
 
 	bool is_server() {
 		return socket_type == SocketType::SERVER;
@@ -179,6 +179,16 @@ struct Socket {
 	Socket& operator=(Socket&&) = delete;
 };
 
+struct DatagramSocket : public Socket {
+	addrinfo *server_address;
+
+	DatagramSocket(addrinfo* addr);
+	~DatagramSocket();
+
+	int sendto(ByteBuffer& b);
+	using Socket::sendto;
+};
+
 struct Selector {
 private:
 	void purge_sokets();
@@ -188,12 +198,13 @@ public:
 	std::set<std::shared_ptr<Socket>> sockets;
 	std::set<std::shared_ptr<Socket>> canceled_sockets;
 
-	std::shared_ptr<Socket> start_udp_receiver_ipv6(int port, std::shared_ptr<SocketAttachment> attachment);
-	std::shared_ptr<Socket> start_udp_receiver_ipv4(int port, std::shared_ptr<SocketAttachment> attachment);
-	std::shared_ptr<Socket> start_multicast_receiver_ipv6(const char* group_address, int port, std::shared_ptr<SocketAttachment> attachment);
-	std::shared_ptr<Socket> start_multicast_receiver_ipv4(const char* group_address, int port, std::shared_ptr<SocketAttachment> attachment);
+	std::shared_ptr<Socket> start_udp_server_ipv6(int port, std::shared_ptr<SocketAttachment> attachment);
+	std::shared_ptr<Socket> start_udp_server_ipv4(int port, std::shared_ptr<SocketAttachment> attachment);
+	std::shared_ptr<Socket> start_multicast_server_ipv6(const char* group_address, int port, std::shared_ptr<SocketAttachment> attachment);
+	std::shared_ptr<Socket> start_multicast_server_ipv4(const char* group_address, int port, std::shared_ptr<SocketAttachment> attachment);
 	std::shared_ptr<Socket> start_server(int port, std::shared_ptr<SocketAttachment> attachment);
 	std::shared_ptr<Socket> start_client(const char* address, int port, std::shared_ptr<SocketAttachment> attachment);
+	std::shared_ptr<DatagramSocket> start_udp_client(const char* address, int port, std::shared_ptr<SocketAttachment> attachment);
 	std::shared_ptr<Socket> accept(std::shared_ptr<Socket> server, std::shared_ptr<SocketAttachment> attachment);
 	int select(long timeout=0);
 	void cancel_socket(std::shared_ptr<Socket> socket);

@@ -66,6 +66,10 @@ void ByteBuffer::put(const char* from, size_t offset, size_t length) {
     position += length;
 }
 
+void ByteBuffer::put(std::string_view sv) {
+    put(sv.data(), 0, sv.length());
+}
+
 void ByteBuffer::put(char byte) {
     if (!has_remaining()) {
         throw std::out_of_range("Insufficient space remaining.");
@@ -111,6 +115,60 @@ void free_addrinfo(struct addrinfo* p) {
     if (p != NULL) {
         freeaddrinfo(p);
     }
+}
+
+std::shared_ptr<DatagramSocket> Selector::start_udp_client(const char* address, int port, std::shared_ptr<SocketAttachment> attachment) {
+    char port_str[128];
+
+    snprintf(port_str, sizeof(port_str), "%d", port);
+
+    struct addrinfo hints {}, * res{};
+
+    /*
+    * We take a numeric port number and not a
+    * service name like "http" or "ftp" for port.
+    * This will tell getaddrinfo() not to do any
+    * service name resolution making it slightly faster.
+    */
+    hints.ai_flags = AI_NUMERICSERV;
+    /*
+    * This will cause getaddrinfo() to return both ipv4 and ipv6
+    * address if available.
+    */
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_DGRAM; //UDP
+
+    int status = ::getaddrinfo(address, port_str, &hints, &res);
+
+    /*
+    * getaddrinfo() is strange in a way since it may return a positive
+    * value in case of an error. Any non-zero value indicates an error.
+    */
+    if (status != 0 || res == NULL) {
+        throw std::runtime_error("Failed to resolve address.");
+    }
+
+    /*
+    * Creating the socket object here willmake sure res gets freed up
+    * no matter what happens.
+    */
+    auto client = std::make_shared<DatagramSocket>(res);
+
+    SOCKET sock = ::socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+
+    if (sock == INVALID_SOCKET) {
+        throw std::runtime_error("Failed to create a socket.");
+    }
+
+    set_nonblocking(sock);
+
+    client->fd = sock;
+    client->socket_type = Socket::SocketType::CLIENT;
+    client->attachment = attachment;
+
+    sockets.insert(client);
+
+    return client;
 }
 
 std::shared_ptr<Socket> Selector::start_client(const char* address, int port, std::shared_ptr<SocketAttachment> attachment) {
@@ -204,8 +262,8 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
     return client;
 }
 
-std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv6(const char* group_ip, int port, std::shared_ptr<SocketAttachment> attachment) {
-    auto receiver = start_udp_receiver_ipv6(port, attachment);
+std::shared_ptr<Socket> Selector::start_multicast_server_ipv6(const char* group_ip, int port, std::shared_ptr<SocketAttachment> attachment) {
+    auto receiver = start_udp_server_ipv6(port, attachment);
 
     // Join the multicast group
     struct ipv6_mreq mreq {};
@@ -225,7 +283,7 @@ std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv6(const char* grou
     return receiver;
 }
 
-std::shared_ptr<Socket> Selector::start_udp_receiver_ipv6(int port, std::shared_ptr<SocketAttachment> attachment) {
+std::shared_ptr<Socket> Selector::start_udp_server_ipv6(int port, std::shared_ptr<SocketAttachment> attachment) {
     // Create a UDP socket
     int sock = ::socket(AF_INET6, SOCK_DGRAM, 0);
 
@@ -267,8 +325,8 @@ std::shared_ptr<Socket> Selector::start_udp_receiver_ipv6(int port, std::shared_
 /*
 * Starts a UDP multicast receiver (server). 
 */
-std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv4(const char* group_ip, int port, std::shared_ptr<SocketAttachment> attachment) {
-    auto receiver = start_udp_receiver_ipv4(port, attachment);
+std::shared_ptr<Socket> Selector::start_multicast_server_ipv4(const char* group_ip, int port, std::shared_ptr<SocketAttachment> attachment) {
+    auto receiver = start_udp_server_ipv4(port, attachment);
 
     // Join the multicast group
     struct ip_mreq mreq {};
@@ -288,7 +346,7 @@ std::shared_ptr<Socket> Selector::start_multicast_receiver_ipv4(const char* grou
     return receiver;
 }
 
-std::shared_ptr<Socket> Selector::start_udp_receiver_ipv4(int port, std::shared_ptr<SocketAttachment> attachment) {
+std::shared_ptr<Socket> Selector::start_udp_server_ipv4(int port, std::shared_ptr<SocketAttachment> attachment) {
     // Create a UDP socket
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -553,6 +611,22 @@ Socket::~Socket() {
 
         fd = INVALID_SOCKET;
     }
+}
+
+DatagramSocket::DatagramSocket(addrinfo* addr) : server_address(addr) {
+
+}
+
+DatagramSocket::~DatagramSocket() {
+    if (server_address != NULL) {
+        ::freeaddrinfo(server_address);
+
+        server_address = NULL;
+    }
+}
+
+int DatagramSocket::sendto(ByteBuffer& b) {
+    return sendto(b, server_address->ai_addr, sizeof(*server_address->ai_addr));
 }
 
 /*
