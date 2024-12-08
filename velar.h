@@ -163,6 +163,8 @@ struct Socket {
 
 	int read(ByteBuffer& b);
 	int write(ByteBuffer& b);
+	int recvfrom(ByteBuffer& b, sockaddr* from, int* from_len);
+	int sendto(ByteBuffer& b, const struct sockaddr* to, int to_len);
 
 	bool operator<(const Socket& other) const {
 		return fd < other.fd;

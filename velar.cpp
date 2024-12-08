@@ -641,6 +641,79 @@ int Socket::read(ByteBuffer& b) {
     return bytes_read;
 }
 
+
+int Socket::recvfrom(ByteBuffer& b, sockaddr* from, int* from_len) {
+    if (!b.has_remaining()) {
+        throw std::runtime_error("Buffer is full.");
+    }
+
+#ifdef _WIN32
+    int bytes_read = ::recvfrom(
+        fd,
+        b.array + b.position,
+        b.remaining(),
+        0,
+        from,
+        from_len);
+
+    if (bytes_read == SOCKET_ERROR) {
+        int err = ::WSAGetLastError();
+
+        if (err == WSAECONNRESET) {
+            //Ungraceful disconnect by the other party
+            return -1;
+        }
+
+        if (err == WSAEWOULDBLOCK) {
+            //Not an error really.
+            return 0;
+        }
+        else {
+            //A real error has taken place.
+            return -1;
+        }
+    }
+#else
+    int bytes_read = ::recvfrom(
+        fd,
+        b.array + b.position,
+        b.remaining(),
+        0,
+        from,
+        from_len);
+
+    if (bytes_read < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            //Not an error really.
+            return 0;
+        }
+        else {
+            //A real error has taken place.
+            return -1;
+        }
+    }
+#endif
+
+    if (bytes_read == 0) {
+        /*
+        * The other party has disconnected:
+        * Gracefully in Windows.
+        * Gracefully or ungracefully in Linux.
+        */
+        return -1;
+    }
+
+    if (bytes_read < 0) {
+        //This should have been handled above already.
+        throw std::runtime_error("Invalid state.");
+    }
+
+    //Forward the position
+    b.position += bytes_read;
+
+    return bytes_read;
+}
+
 /*
 * Writes any remaining data from this socket into the supplied ByteBuffer.
 * Upon a successful write the position of the buffer is incremented but the limit remains unchanged.
@@ -696,6 +769,78 @@ int Socket::write(ByteBuffer& b) {
         fd,
         b.array + b.position,
         b.remaining());
+
+    if (bytes_written < 0) {
+        if (errno == EAGAIN && errno == EWOULDBLOCK) {
+            //Not a real error
+            return 0;
+        }
+        else {
+            //A real error has taken place.
+            return -1;
+        }
+    }
+#endif
+
+    if (bytes_written == 0) {
+        /*
+        * The other party has disconnected:
+        * Gracefully in Windows.
+        * Gracefully or ungracefully in Linux.
+        */
+        return -1;
+    }
+
+    if (bytes_written < 0) {
+        //This should have been handled above already.
+        throw std::runtime_error("Invalid state.");
+    }
+
+    //Forward the position
+    b.position += bytes_written;
+
+    return bytes_written;
+}
+
+int Socket::sendto(ByteBuffer& b, const struct sockaddr* to, int to_len) {
+    if (!b.has_remaining()) {
+        throw std::runtime_error("Buffer is empty.");
+    }
+
+#ifdef _WIN32
+    int bytes_written = ::sendto(
+        fd,
+        b.array + b.position,
+        b.remaining(),
+        0,
+        to,
+        to_len);
+
+    if (bytes_written == SOCKET_ERROR) {
+        int err = ::WSAGetLastError();
+
+        if (err == WSAECONNRESET) {
+            //Ungraceful disconnect
+            return -1;
+        }
+
+        if (err == WSAEWOULDBLOCK) {
+            //Not a real error
+            return 0;
+        }
+        else {
+            //A real error has taken place.
+            return -1;
+        }
+    }
+#else
+    int bytes_written = ::sendto(
+        fd,
+        b.array + b.position,
+        b.remaining(),
+        0,
+        to,
+        to_len);
 
     if (bytes_written < 0) {
         if (errno == EAGAIN && errno == EWOULDBLOCK) {
