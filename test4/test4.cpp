@@ -15,11 +15,11 @@ int main()
     ByteBuffer cli_buff(1024), srv_buff(1024);
     bool keep_running = true;
 
-    sel.start_udp_server_ipv4(2024, std::make_shared<MyData>("SERVER"));
+    //sel.start_udp_server_ipv4(2024, std::make_shared<MyData>("SERVER"));
 
-    //auto client = sel.start_udp_client("localhost", 2024, std::make_shared<MyData>("CLIENT"));
+    auto client = sel.start_udp_client("localhost", 2024, std::make_shared<MyData>("CLIENT"));
 
-    //client->report_writable(true);
+    client->report_writable(true);
 
     while (keep_running) {
         sel.select();
@@ -39,10 +39,14 @@ int main()
 
                     cli_buff.put(sv);
 
-                    s_w->sendto(cli_buff);
+                    cli_buff.flip();
+
+                    int sz = s_w->sendto(cli_buff);
+
+                    std::cout << "Sent: " << sz << std::endl;
 
                     s->report_writable(false);
-                    s->report_readable(true);
+                    //s->report_readable(true);
                 }
             } else if (s->is_readable()) {
                 std::shared_ptr<MyData> attachment = std::static_pointer_cast<MyData>(s->attachment);
@@ -77,6 +81,21 @@ int main()
                     }
 
                     //keep_running = false;
+                }
+                else if (attachment->type == "CLIENT") {
+                    std::cout << "Client received response." << std::endl;
+
+                    cli_buff.clear();
+
+                    sockaddr_in from{};
+                    int from_len = sizeof(sockaddr_in);
+
+                    int sz = s->recvfrom(cli_buff, (sockaddr*)&from, &from_len);
+
+                    cli_buff.flip();
+
+                    std::cout << "Read: " << sz << std::endl;
+
                 }
             }
         }
