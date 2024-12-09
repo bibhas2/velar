@@ -310,6 +310,14 @@ std::shared_ptr<Socket> Selector::start_udp_server_ipv6(int port, std::shared_pt
         throw std::runtime_error("Failed to create a socket.");
     }
 
+    /*
+    * This will make the socket bind to both ipv6 and ipv4 address.
+    * This way, a client can connect using either ipv4 or ipv6 address.
+    */
+    int optval = 0;
+
+    ::setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&optval, sizeof(optval));
+
     int on = 1;
 
     int status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&on, sizeof(on));
