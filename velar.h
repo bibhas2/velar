@@ -208,8 +208,7 @@ public:
 
 	std::shared_ptr<Socket> start_udp_server(int port, std::shared_ptr<SocketAttachment> attachment);
 	std::shared_ptr<Socket> start_udp_server_ipv4(int port, std::shared_ptr<SocketAttachment> attachment);
-	std::shared_ptr<Socket> start_multicast_server_ipv6(const char* group_address, int port, std::shared_ptr<SocketAttachment> attachment);
-	std::shared_ptr<Socket> start_multicast_server_ipv4(const char* group_address, int port, std::shared_ptr<SocketAttachment> attachment);
+	std::shared_ptr<Socket> start_multicast_server(const char* group_address, int port, std::shared_ptr<SocketAttachment> attachment);
 	std::shared_ptr<Socket> start_server(int port, std::shared_ptr<SocketAttachment> attachment);
 	std::shared_ptr<Socket> start_client(const char* address, int port, std::shared_ptr<SocketAttachment> attachment);
 	std::shared_ptr<DatagramSocket> start_udp_client(const char* address, int port, std::shared_ptr<SocketAttachment> attachment);

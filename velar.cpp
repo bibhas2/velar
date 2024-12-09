@@ -281,23 +281,37 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
     return client;
 }
 
-std::shared_ptr<Socket> Selector::start_multicast_server_ipv6(const char* group_ip, int port, std::shared_ptr<SocketAttachment> attachment) {
+/*
+* Starts a UDP server and makes it join a multicast group identified by the group's
+* IP address group_ip. The group's address can be any valid ipv4 or ipv6 IP address.
+*/
+std::shared_ptr<Socket> Selector::start_multicast_server(const char* group_ip, int port, std::shared_ptr<SocketAttachment> attachment) {
     auto receiver = start_udp_server(port, attachment);
 
     // Join the multicast group
-    struct ipv6_mreq mreq {};
+    struct ipv6_mreq mreq6 {};
+    struct ip_mreq mreq4 {};
 
     //Set the multicast group address
-    if (inet_pton(AF_INET6, group_ip, &mreq.ipv6mr_multiaddr) != 1) {
-        throw std::runtime_error("Failed to get IPV6 address.");
+    if (inet_pton(AF_INET6, group_ip, &mreq6.ipv6mr_multiaddr) == 1) {
+        mreq6.ipv6mr_interface = 0;
+
+        //Join the group
+        int status = ::setsockopt(receiver->fd, IPPROTO_IPV6, IPV6_JOIN_GROUP, (const char*)&mreq6, sizeof(mreq6));
+
+        check_socket_error(status, "Failed to join multicast group.");
     }
+    else if (inet_pton(AF_INET, group_ip, &mreq4.imr_multiaddr.s_addr) == 1) {
+        mreq4.imr_interface.s_addr = INADDR_ANY;
 
-    mreq.ipv6mr_interface = 0;
+        //Join the group
+        int status = ::setsockopt(receiver->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (const char*)&mreq4, sizeof(mreq4));
 
-    //Join the group
-    int status = ::setsockopt(receiver->fd, IPPROTO_IPV6, IPV6_JOIN_GROUP, (const char*)&mreq, sizeof(mreq));
-
-    check_socket_error(status, "Failed to join multicast group.");
+        check_socket_error(status, "Failed to join multicast group.");
+    }
+    else {
+        throw std::runtime_error("The group IP address is not a valid ipv6 or ipv4 address.");
+    }
 
     return receiver;
 }
@@ -345,30 +359,6 @@ std::shared_ptr<Socket> Selector::start_udp_server(int port, std::shared_ptr<Soc
     receiver->report_readable(true);
 
     sockets.insert(receiver);
-
-    return receiver;
-}
-
-/*
-* Starts a UDP multicast receiver (server). 
-*/
-std::shared_ptr<Socket> Selector::start_multicast_server_ipv4(const char* group_ip, int port, std::shared_ptr<SocketAttachment> attachment) {
-    auto receiver = start_udp_server_ipv4(port, attachment);
-
-    // Join the multicast group
-    struct ip_mreq mreq {};
-
-    //Set the multicast group address
-    if (inet_pton(AF_INET, group_ip, &mreq.imr_multiaddr.s_addr) != 1) {
-        throw std::runtime_error("Failed to get address.");
-    }
-
-    mreq.imr_interface.s_addr = INADDR_ANY;
-
-    //Join the group
-    int status = ::setsockopt(receiver->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (const char*)&mreq, sizeof(mreq));
-
-    check_socket_error(status, "Failed to join multicast group.");
 
     return receiver;
 }

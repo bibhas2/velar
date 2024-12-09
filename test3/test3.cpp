@@ -19,15 +19,16 @@ int main()
     /*
     * Use netcat like this to send messages to this port.
     * 
-    * nc -4u 2024
+    * nc -4u localhost 2024
     */
-    sel.start_udp_server_ipv4(2024, std::make_shared<MyData>("UDP"));
+    sel.start_udp_server(2024, std::make_shared<MyData>("UDP"));
 
     /*
     * mdns group address and port. Many household devices like TV and
     * chromecast multicast here.
     */
-    sel.start_multicast_server_ipv6("ff02::fb", 5353, std::make_shared<MyData>("UDP MULTICAST"));
+    sel.start_multicast_server("224.0.0.251", 5353, std::make_shared<MyData>("IPV4::UDP MULTICAST"));
+    sel.start_multicast_server("ff02::fb", 5353, std::make_shared<MyData>("IPV6::UDP MULTICAST"));
 
     while (keep_running) {
         sel.select();
