@@ -24,10 +24,10 @@ int main()
     sel.start_udp_server_ipv4(2024, std::make_shared<MyData>("UDP"));
 
     /*
-    * Many household routers will send multicast messages to this group
-    * IP and port.
+    * mdns group address and port. Many household devices like TV and
+    * chromecast multicast here.
     */
-    sel.start_multicast_server_ipv4("239.255.255.250", 1900, std::make_shared<MyData>("UDP MULTICAST"));
+    sel.start_multicast_server_ipv6("ff02::fb", 5353, std::make_shared<MyData>("UDP MULTICAST"));
 
     while (keep_running) {
         sel.select();
