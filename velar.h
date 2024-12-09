@@ -13,6 +13,12 @@
 using SOCKET = int;
 #define INVALID_SOCKET -1
 #define SOCKET_ERROR -1
+
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+
 #endif
 
 struct ByteBuffer {

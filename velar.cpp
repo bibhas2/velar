@@ -26,10 +26,7 @@ public:
 
 static WSInit __wsa_init;
 #else
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
+#include <arpa/inet.h>
 #endif
 
 ByteBuffer::ByteBuffer(size_t capacity) {
@@ -777,6 +774,7 @@ int Socket::recvfrom(ByteBuffer& b, sockaddr* from, int* from_len) {
         b.remaining(),
         0,
         from,
+        (socklen_t*) 
         from_len);
 
     if (bytes_read < 0) {

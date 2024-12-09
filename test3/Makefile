@@ -1,6 +1,6 @@
 CC=g++
 CFLAGS=-std=gnu++20 -I../
-EXECNAME=test2
+EXECNAME=test3
 OBJS=$(EXECNAME).o
 HEADERS=
 

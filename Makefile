@@ -13,6 +13,8 @@ libvelar.a: $(OBJS)
 test:
 	make -C test1
 	make -C test2
+	make -C test3
+	make -C test4
 	
 clean:
 	rm $(OBJS)
