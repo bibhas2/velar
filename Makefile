@@ -19,3 +19,7 @@ test:
 clean:
 	rm $(OBJS)
 	rm libvelar.a
+	make -C test1 clean
+	make -C test2 clean
+	make -C test3 clean
+	make -C test4 clean
