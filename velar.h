@@ -8,7 +8,9 @@
 #include <cstring>
 
 #ifdef _WIN32
-#include <winsock2.h>
+//This header adds support for ipv6 and
+//includes the base header: winsock2.h.
+#include <ws2tcpip.h>
 #else
 using SOCKET = int;
 #define INVALID_SOCKET -1

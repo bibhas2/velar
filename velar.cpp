@@ -3,7 +3,6 @@
 
 #ifdef _WIN32
 //These are needed by IPV6
-#include <ws2tcpip.h>
 #pragma comment(lib, "ws2_32.lib")
 
 /*

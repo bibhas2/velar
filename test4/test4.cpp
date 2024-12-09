@@ -63,7 +63,7 @@ void server()
     ByteBuffer srv_buff(1024);
     bool keep_running = true;
 
-    sel.start_udp_server_ipv4(2024, nullptr);
+    sel.start_udp_server_ipv6(2024, nullptr);
 
     while (keep_running) {
         sel.select();
@@ -75,11 +75,11 @@ void server()
                 srv_buff.clear();
 
                 /*
-                * The server sokcet was created using ipv4 so use 
-                * sockaddr_in here.
+                * Using ipv6 here presumably will work with a ipv4 source
+                * client also. This needs to be tested.
                 */
-                sockaddr_in from{};
-                int from_len = sizeof(sockaddr_in);
+                sockaddr_in6 from{};
+                int from_len = sizeof(sockaddr_in6);
 
                 int sz = s->recvfrom(srv_buff, (sockaddr*)&from, &from_len);
 
