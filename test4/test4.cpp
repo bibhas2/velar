@@ -1,23 +1,13 @@
 #include <iostream>
 #include <velar.h>
 
-struct MyData : public SocketAttachment {
-    std::string type;
-
-    MyData(const char* t) : type(t) {
-
-    }
-};
-
-int main()
+void client()
 {
     Selector sel;
-    ByteBuffer cli_buff(1024), srv_buff(1024);
+    ByteBuffer cli_buff(1024);
     bool keep_running = true;
 
-    //sel.start_udp_server_ipv4(2024, std::make_shared<MyData>("SERVER"));
-
-    auto client = sel.start_udp_client("localhost", 2024, std::make_shared<MyData>("CLIENT"));
+    auto client = sel.start_udp_client("localhost", 2024, nullptr);
 
     client->report_writable(true);
 
@@ -26,79 +16,117 @@ int main()
 
         for (auto& s : sel.sockets) {
             if (s->is_writable()) {
-                std::shared_ptr<MyData> attachment = std::static_pointer_cast<MyData>(s->attachment);
+                std::cout << "Client sending request." << std::endl;
 
-                if (attachment->type == "CLIENT") {
-                    std::cout << "Client sending request." << std::endl;
+                std::shared_ptr<DatagramSocket> s_w = std::static_pointer_cast<DatagramSocket>(s);
 
-                    std::shared_ptr<DatagramSocket> s_w = std::static_pointer_cast<DatagramSocket>(s);
+                cli_buff.clear();
 
-                    cli_buff.clear();
+                auto sv = std::string_view("CLIENT REQUEST");
 
-                    auto sv = std::string_view("CLIENT REQUEST");
+                cli_buff.put(sv);
 
-                    cli_buff.put(sv);
+                cli_buff.flip();
 
-                    cli_buff.flip();
+                int sz = s_w->sendto(cli_buff);
 
-                    int sz = s_w->sendto(cli_buff);
+                std::cout << "Sent: " << sz << std::endl;
 
-                    std::cout << "Sent: " << sz << std::endl;
-
-                    s->report_writable(false);
-                    //s->report_readable(true);
-                }
-            } else if (s->is_readable()) {
-                std::shared_ptr<MyData> attachment = std::static_pointer_cast<MyData>(s->attachment);
-
-                if (attachment->type == "SERVER") {
-                    std::cout << "Server received request." << std::endl;
-
-                    srv_buff.clear();
-
-                    sockaddr_in from{};
-                    int from_len = sizeof(sockaddr_in);
-
-                    int sz = s->recvfrom(srv_buff, (sockaddr*) &from, &from_len);
-
-                    if (sz > 0) {
-                        srv_buff.flip();
-                        std::cout << srv_buff.to_string_view() << std::endl;
-
-                        srv_buff.clear();
-                        srv_buff.put(std::string_view("RESPONSE\r\n"));
-                        srv_buff.flip();
-
-                        int sz = s->sendto(srv_buff, (sockaddr*) &from, from_len);
-
-                        std::cout << "Server sent: " << sz << std::endl;
-                    }
-                    else if (sz == 0) {
-                        std::cout << "Client disconnected" << std::endl;
-                    }
-                    else {
-                        std::cout << "Failed to receive data" << std::endl;
-                    }
-
-                    //keep_running = false;
-                }
-                else if (attachment->type == "CLIENT") {
+                s->report_writable(false);
+                s->report_readable(true);
+            }
+            else if (s->is_readable()) {
                     std::cout << "Client received response." << std::endl;
 
                     cli_buff.clear();
 
-                    sockaddr_in from{};
-                    int from_len = sizeof(sockaddr_in);
+                    int sz = s->recvfrom(cli_buff, nullptr, nullptr);
 
-                    int sz = s->recvfrom(cli_buff, (sockaddr*)&from, &from_len);
-
-                    cli_buff.flip();
 
                     std::cout << "Read: " << sz << std::endl;
 
-                }
+                    if (sz > 0) {
+                        cli_buff.flip();
+
+                        std::cout << cli_buff.to_string_view() << std::endl;
+                    }
+
+                    keep_running = false;
             }
         }
+    }
+}
+
+void server()
+{
+    Selector sel;
+    ByteBuffer srv_buff(1024);
+    bool keep_running = true;
+
+    sel.start_udp_server_ipv4(2024, nullptr);
+
+    while (keep_running) {
+        sel.select();
+
+        for (auto& s : sel.sockets) {
+            if (s->is_readable()) {
+                std::cout << "Server received request." << std::endl;
+
+                srv_buff.clear();
+
+                /*
+                * The server sokcet was created using ipv4 so use 
+                * sockaddr_in here.
+                */
+                sockaddr_in from{};
+                int from_len = sizeof(sockaddr_in);
+
+                int sz = s->recvfrom(srv_buff, (sockaddr*)&from, &from_len);
+
+                if (sz > 0) {
+                    srv_buff.flip();
+                    std::cout << srv_buff.to_string_view() << std::endl;
+
+                    srv_buff.clear();
+                    srv_buff.put(std::string_view("RESPONSE\r\n"));
+                    srv_buff.flip();
+
+                    int sz = s->sendto(srv_buff, (sockaddr*)&from, from_len);
+
+                    std::cout << "Server sent: " << sz << std::endl;
+                }
+                else if (sz == 0) {
+                    std::cout << "Client disconnected" << std::endl;
+                }
+                else {
+                    std::cout << "Failed to receive data" << std::endl;
+                }
+
+                //keep_running = false;
+            }
+        }
+    }
+}
+
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        std::cout << "Usage: program [--client | --server]" << std::endl;
+
+        return 1;
+    }
+
+    std::string_view mode = argv[1];
+
+    if (mode == "--client") {
+        client();
+    }
+    else if (mode == "--server") {
+        server();
+    }
+    else {
+        std::cout << "Invalid mode: " << mode << std::endl;
+
+        return 1;
     }
 
     return 0;
