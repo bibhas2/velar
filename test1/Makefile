@@ -4,12 +4,12 @@ EXECNAME=test1
 OBJS=$(EXECNAME).o
 HEADERS=
 
-all: test1
+all: test
 
 %.o: %.cpp $(HEADERS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-test1: $(OBJS) $(HEADERS)
+test: $(OBJS) $(HEADERS)
 	mkdir -p build
 	$(CC) -L../ -o build/$(EXECNAME) $(OBJS) -lvelar
 
