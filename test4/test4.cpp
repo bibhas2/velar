@@ -63,7 +63,7 @@ void server()
     ByteBuffer srv_buff(1024);
     bool keep_running = true;
 
-    sel.start_udp_server_ipv6(2024, nullptr);
+    sel.start_udp_server(2024, nullptr);
 
     while (keep_running) {
         sel.select();

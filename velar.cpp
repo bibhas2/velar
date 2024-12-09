@@ -282,7 +282,7 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
 }
 
 std::shared_ptr<Socket> Selector::start_multicast_server_ipv6(const char* group_ip, int port, std::shared_ptr<SocketAttachment> attachment) {
-    auto receiver = start_udp_server_ipv6(port, attachment);
+    auto receiver = start_udp_server(port, attachment);
 
     // Join the multicast group
     struct ipv6_mreq mreq {};
@@ -302,9 +302,9 @@ std::shared_ptr<Socket> Selector::start_multicast_server_ipv6(const char* group_
     return receiver;
 }
 
-std::shared_ptr<Socket> Selector::start_udp_server_ipv6(int port, std::shared_ptr<SocketAttachment> attachment) {
+std::shared_ptr<Socket> Selector::start_udp_server(int port, std::shared_ptr<SocketAttachment> attachment) {
     // Create a UDP socket
-    int sock = ::socket(AF_INET6, SOCK_DGRAM, 0);
+    SOCKET sock = ::socket(AF_INET6, SOCK_DGRAM, 0);
 
     if (sock == INVALID_SOCKET) {
         throw std::runtime_error("Failed to create a socket.");
@@ -375,7 +375,7 @@ std::shared_ptr<Socket> Selector::start_multicast_server_ipv4(const char* group_
 
 std::shared_ptr<Socket> Selector::start_udp_server_ipv4(int port, std::shared_ptr<SocketAttachment> attachment) {
     // Create a UDP socket
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
 
     if (sock == INVALID_SOCKET) {
         throw std::runtime_error("Failed to create a socket.");
