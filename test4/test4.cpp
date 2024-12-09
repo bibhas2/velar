@@ -76,7 +76,9 @@ void server()
 
                 /*
                 * Using ipv6 here presumably will work with a ipv4 source
-                * client also. This needs to be tested.
+                * client also. We tested this by disabling ipv6 in linux using these commands:
+                * sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
+                * sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
                 */
                 sockaddr_in6 from{};
                 int from_len = sizeof(sockaddr_in6);
@@ -84,6 +86,16 @@ void server()
                 int sz = s->recvfrom(srv_buff, (sockaddr*)&from, &from_len);
 
                 if (sz > 0) {
+                    if (from.sin6_family == AF_INET) {
+                        std::cout << "Client is: AF_INET" << std::endl;
+                    }
+                    else if (from.sin6_family == AF_INET6) {
+                        std::cout << "Client is: AF_INET6" << std::endl;
+                    }
+                    else {
+                        std::cout << "Unknown family: " << from.sin6_family << std::endl;
+                    }
+
                     srv_buff.flip();
                     std::cout << srv_buff.to_string_view() << std::endl;
 
