@@ -195,6 +195,9 @@ struct DatagramSocket : public Socket {
 
 	int sendto(ByteBuffer& b);
 	using Socket::sendto;
+
+	int recvfrom(ByteBuffer& b);
+	using Socket::recvfrom;
 };
 
 struct Selector {

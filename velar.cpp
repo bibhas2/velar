@@ -646,8 +646,29 @@ DatagramSocket::~DatagramSocket() {
     }
 }
 
+/*
+* Writes data from the buffer to the address and port that
+* this socket was constructed with. The buffer's position is
+* moved forward by the number of bytes written. The limit
+* remains unchanged. If not all the data could be written,
+* calling has_remaining() on the buffer will return true.
+*/
 int DatagramSocket::sendto(ByteBuffer& b) {
     return sendto(b, server_address->ai_addr, server_address->ai_addrlen);
+}
+
+/*
+* After the first time sendto() is called for a UDP socket it
+* gets implicitly bound to the destination server's address and port.
+* You can then call recvfrom(). This will receive data from the server where the
+* original sendto() request was sent.
+* 
+* The position of the buffer is moved forward by the number of bytes received.
+* Limit is left unchanged. You should flip() the buffer before reading
+* from it.
+*/
+int DatagramSocket::recvfrom(ByteBuffer& b) {
+    return recvfrom(b, nullptr, nullptr);
 }
 
 /*
