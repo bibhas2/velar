@@ -187,11 +187,15 @@ struct Socket {
 	Socket& operator=(Socket&&) = delete;
 };
 
-struct DatagramSocket : public Socket {
+/*
+* A socket class that remembers the destination server's
+* address and port. This makes it easy to call sendto().
+*/
+struct DatagramClientSocket : public Socket {
 	addrinfo *server_address;
 
-	DatagramSocket(addrinfo* addr);
-	~DatagramSocket();
+	DatagramClientSocket(addrinfo* addr);
+	~DatagramClientSocket();
 
 	int sendto(ByteBuffer& b);
 	using Socket::sendto;
@@ -213,7 +217,7 @@ public:
 	std::shared_ptr<Socket> start_multicast_server(const char* group_address, int port, std::shared_ptr<SocketAttachment> attachment);
 	std::shared_ptr<Socket> start_server(int port, std::shared_ptr<SocketAttachment> attachment);
 	std::shared_ptr<Socket> start_client(const char* address, int port, std::shared_ptr<SocketAttachment> attachment);
-	std::shared_ptr<DatagramSocket> start_udp_client(const char* address, int port, std::shared_ptr<SocketAttachment> attachment);
+	std::shared_ptr<DatagramClientSocket> start_udp_client(const char* address, int port, std::shared_ptr<SocketAttachment> attachment);
 	std::shared_ptr<Socket> accept(std::shared_ptr<Socket> server, std::shared_ptr<SocketAttachment> attachment);
 	int select(long timeout=0);
 	void cancel_socket(std::shared_ptr<Socket> socket);

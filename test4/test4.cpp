@@ -18,7 +18,7 @@ void client()
             if (s->is_writable()) {
                 std::cout << "Client sending request." << std::endl;
 
-                std::shared_ptr<DatagramSocket> s_w = std::static_pointer_cast<DatagramSocket>(s);
+                std::shared_ptr<DatagramClientSocket> s_w = std::static_pointer_cast<DatagramClientSocket>(s);
 
                 cli_buff.clear();
 

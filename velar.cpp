@@ -123,7 +123,7 @@ void free_addrinfo(struct addrinfo* p) {
 * 
 * Once you no longer need to communicate with the server cancel the socket.
 */
-std::shared_ptr<DatagramSocket> Selector::start_udp_client(const char* address, int port, std::shared_ptr<SocketAttachment> attachment) {
+std::shared_ptr<DatagramClientSocket> Selector::start_udp_client(const char* address, int port, std::shared_ptr<SocketAttachment> attachment) {
     char port_str[128];
 
     snprintf(port_str, sizeof(port_str), "%d", port);
@@ -181,7 +181,7 @@ std::shared_ptr<DatagramSocket> Selector::start_udp_client(const char* address, 
     * Creating the socket object here willmake sure res gets freed up
     * no matter what happens.
     */
-    auto client = std::make_shared<DatagramSocket>(res);
+    auto client = std::make_shared<DatagramClientSocket>(res);
 
     SOCKET sock = ::socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 
@@ -634,11 +634,11 @@ Socket::~Socket() {
     }
 }
 
-DatagramSocket::DatagramSocket(addrinfo* addr) : server_address(addr) {
+DatagramClientSocket::DatagramClientSocket(addrinfo* addr) : server_address(addr) {
 
 }
 
-DatagramSocket::~DatagramSocket() {
+DatagramClientSocket::~DatagramClientSocket() {
     if (server_address != NULL) {
         ::freeaddrinfo(server_address);
 
@@ -653,7 +653,7 @@ DatagramSocket::~DatagramSocket() {
 * remains unchanged. If not all the data could be written,
 * calling has_remaining() on the buffer will return true.
 */
-int DatagramSocket::sendto(ByteBuffer& b) {
+int DatagramClientSocket::sendto(ByteBuffer& b) {
     return sendto(b, server_address->ai_addr, server_address->ai_addrlen);
 }
 
@@ -667,7 +667,7 @@ int DatagramSocket::sendto(ByteBuffer& b) {
 * Limit is left unchanged. You should flip() the buffer before reading
 * from it.
 */
-int DatagramSocket::recvfrom(ByteBuffer& b) {
+int DatagramClientSocket::recvfrom(ByteBuffer& b) {
     return recvfrom(b, nullptr, nullptr);
 }
 
