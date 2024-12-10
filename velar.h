@@ -207,7 +207,6 @@ public:
 	std::set<std::shared_ptr<Socket>> canceled_sockets;
 
 	std::shared_ptr<Socket> start_udp_server(int port, std::shared_ptr<SocketAttachment> attachment);
-	std::shared_ptr<Socket> start_udp_server_ipv4(int port, std::shared_ptr<SocketAttachment> attachment);
 	std::shared_ptr<Socket> start_multicast_server(const char* group_address, int port, std::shared_ptr<SocketAttachment> attachment);
 	std::shared_ptr<Socket> start_server(int port, std::shared_ptr<SocketAttachment> attachment);
 	std::shared_ptr<Socket> start_client(const char* address, int port, std::shared_ptr<SocketAttachment> attachment);

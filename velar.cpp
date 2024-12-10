@@ -113,6 +113,16 @@ void free_addrinfo(struct addrinfo* p) {
     }
 }
 
+/*
+* Creates a UDP socket. The socket remembers the given server address and port.
+* Any subsequent call to sendto() will use this address. The address of the server
+* can be a hostname, ipv4 or ipv6 address.
+* 
+* After the first call to sendto() a UDP socket gets bound to the server's address and port.
+* Which means, if you call recvfrom() after that the data is read from the server.
+* 
+* Once you no longer need to communicate with the server cancel the socket.
+*/
 std::shared_ptr<DatagramSocket> Selector::start_udp_client(const char* address, int port, std::shared_ptr<SocketAttachment> attachment) {
     char port_str[128];
 
@@ -190,6 +200,13 @@ std::shared_ptr<DatagramSocket> Selector::start_udp_client(const char* address, 
     return client;
 }
 
+/*
+* Creates a new TCP socket and connects it to a server listening at the given 
+* address and port. The address can be a host name, ipv4 or ipv6 IP address.
+* The attachment is set for the newly created client socket.
+* 
+* To disconnect from the server gracefully, cancel the client socket.
+*/
 std::shared_ptr<Socket> Selector::start_client(const char* address, int port, std::shared_ptr<SocketAttachment> attachment) {
     char port_str[128];
 
@@ -316,6 +333,13 @@ std::shared_ptr<Socket> Selector::start_multicast_server(const char* group_ip, i
     return receiver;
 }
 
+/*
+* Starts a UDP socket and binds to the given port. Clients should be able to
+* connect to it using either ipv4 or ipv6 address.
+* 
+* The socket's readbility event reporting is enabled by default. Which means,
+* the server can start accepting request messages from clients right away.
+*/
 std::shared_ptr<Socket> Selector::start_udp_server(int port, std::shared_ptr<SocketAttachment> attachment) {
     // Create a UDP socket
     SOCKET sock = ::socket(AF_INET6, SOCK_DGRAM, 0);
@@ -363,45 +387,15 @@ std::shared_ptr<Socket> Selector::start_udp_server(int port, std::shared_ptr<Soc
     return receiver;
 }
 
-std::shared_ptr<Socket> Selector::start_udp_server_ipv4(int port, std::shared_ptr<SocketAttachment> attachment) {
-    // Create a UDP socket
-    SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
-
-    if (sock == INVALID_SOCKET) {
-        throw std::runtime_error("Failed to create a socket.");
-    }
-
-    int on = 1;
-
-    int status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*) &on, sizeof(on));
-
-    check_socket_error(status, "Failed to set SO_REUSEADDR.");
-
-    // Bind the socket to the multicast port
-    struct sockaddr_in addr {};
-
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(port);
-
-    status = bind(sock, (const struct sockaddr*)&addr, sizeof(addr));
-
-    check_socket_error(status, "Failed to bind to port.");
-
-    auto receiver = std::make_shared<Socket>();
-
-    receiver->fd = sock;
-    receiver->socket_type = Socket::SocketType::CLIENT;
-    receiver->attachment = attachment;
-
-    //Turn this on since all receivers need to read
-    receiver->report_readable(true);
-
-    sockets.insert(receiver);
-
-    return receiver;
-}
-
+/*
+* Starts a TCP socket and binds to the given port. Clients should be able to
+* connect to it using either ipv4 or ipv6 address.
+*
+* The socket's readbility event reporting is enabled by default. Which means,
+* the server can start accepting clients right away.
+* 
+* To shutdown the server just cancel the server socket.
+*/
 std::shared_ptr<Socket> Selector::start_server(int port, std::shared_ptr<SocketAttachment> attachment) {
     int status;
 
@@ -452,6 +446,12 @@ std::shared_ptr<Socket> Selector::start_server(int port, std::shared_ptr<SocketA
     return server;
 }
 
+/*
+* Accepts a client that has connected to the given server's socket.
+* A new client socket is created and the attachment is set for the client.
+* The selector begins monitoring the client socket for events until the client
+* socket is cancelled.
+*/
 std::shared_ptr<Socket> Selector::accept(std::shared_ptr<Socket> server, std::shared_ptr<SocketAttachment> attachment) {
     SOCKET client_fd = ::accept(server->fd, NULL, NULL);
 
@@ -607,6 +607,10 @@ int Selector::select(long timeout) {
     return num_events;
 }
 
+/*
+* Removes this socket from the set of sockets monitored by the selector.
+* The socket will be eventually closed and destroyed.
+*/
 void Selector::cancel_socket(std::shared_ptr<Socket> socket) {
     canceled_sockets.insert(socket);
 }
