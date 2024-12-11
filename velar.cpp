@@ -672,7 +672,7 @@ int DatagramClientSocket::recvfrom(ByteBuffer& b) {
 }
 
 /*
-* Reads data from this socket into the supplied ByteBuffer.
+* Reads data from this socket into the supplied ByteBuffer at the current position of the buffer.
 * Upon a successful read the position of the buffer is incremented but limit remains unchanged.
 * Before you retrieve data from the buffer you should call flip().
 * 
@@ -842,8 +842,9 @@ int Socket::recvfrom(ByteBuffer& b, sockaddr* from, int* from_len) {
 }
 
 /*
-* Writes any remaining data from this socket into the supplied ByteBuffer.
-* Upon a successful write the position of the buffer is incremented but the limit remains unchanged.
+* Writes any remaining data from this ByteBuffer into the socket.
+* Upon a successful write the position of the buffer is incremented by the
+* number of bytes actually written. The limit remains unchanged.
 * This way, the buffer keeps track of how much data was sent and how much is yet to be sent.
 * In a nonblocking socket it is common that not all the data can be sent at the same time.
 * You can call write() for the same buffer repetedly until all the data is fully sent.
