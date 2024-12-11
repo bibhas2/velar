@@ -66,16 +66,38 @@ void ByteBuffer::put(std::string_view sv) {
     put(sv.data(), 0, sv.length());
 }
 
-void ByteBuffer::put(char byte) {
+void ByteBuffer::put(char ch) {
     if (!has_remaining()) {
         throw std::out_of_range("Insufficient space remaining.");
     }
 
-    array[position] = byte;
+    array[position] = ch;
 
     ++position;
 }
 
+void ByteBuffer::get(const char* to, size_t offset, size_t length) {
+    if (offset >= length) {
+        throw std::runtime_error("Invalid parameters.");
+    }
+    if (remaining() < (length - offset)) {
+        throw std::out_of_range("Fewer bytes remaining.");
+    }
+
+    ::memcpy((void*) to, array, (length - offset));
+
+    position += length;
+}
+
+void ByteBuffer::get(char& ch) {
+    if (!has_remaining()) {
+        throw std::out_of_range("Insufficient space remaining.");
+    }
+
+    ch = array[position];
+
+    ++position;
+}
 
 static void set_nonblocking(SOCKET socket) {
 #ifdef _WIN32
