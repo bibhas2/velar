@@ -774,15 +774,25 @@ int Socket::recvfrom(ByteBuffer& b, sockaddr* from, int* from_len) {
 
     if (bytes_read == SOCKET_ERROR) {
         int err = ::WSAGetLastError();
-        std::cout << "WSA Error: " << err << std::endl;
+
         if (err == WSAECONNRESET) {
             //Ungraceful disconnect by the other party
             return -1;
-        }
-
-        if (err == WSAEWOULDBLOCK) {
+        } else if (err == WSAEWOULDBLOCK) {
             //Not an error really.
             return 0;
+        }
+        else if (err == WSAEMSGSIZE) {
+            /*
+            * A partial read took place. In Windows this is an error.
+            * But in Linux it is not an error.
+            * 
+            * We make our recvfrom()
+            * behave the same way as in Linux by returning the number of bytes 
+            * saved in the buffer.
+            */
+            
+            bytes_read = b.remaining();
         }
         else {
             //A real error has taken place.

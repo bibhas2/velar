@@ -12,7 +12,15 @@ void client()
     client->report_writable(true);
 
     while (keep_running) {
-        sel.select();
+        int n = sel.select(5);
+
+        if (n == 0) {
+            //Timeout
+
+            keep_running = false;
+
+            continue;
+        }
 
         for (auto& s : sel.sockets) {
             if (s->is_writable()) {
@@ -42,7 +50,6 @@ void client()
 
                     int sz = s->recvfrom(cli_buff, nullptr, nullptr);
 
-
                     std::cout << "Read: " << sz << std::endl;
 
                     if (sz > 0) {
@@ -60,13 +67,14 @@ void client()
 void server()
 {
     Selector sel;
-    ByteBuffer srv_buff(1024);
+    //A small buffer is used to test for partial read
+    ByteBuffer srv_buff(10);
     bool keep_running = true;
 
     sel.start_udp_server(2024, nullptr);
 
     while (keep_running) {
-        sel.select();
+        int n = sel.select();
 
         for (auto& s : sel.sockets) {
             if (s->is_readable()) {
@@ -108,13 +116,11 @@ void server()
                     std::cout << "Server sent: " << sz << std::endl;
                 }
                 else if (sz == 0) {
-                    std::cout << "Client disconnected" << std::endl;
+                    std::cout << "Nothing was read." << std::endl;
                 }
                 else {
                     std::cout << "Failed to receive data" << std::endl;
                 }
-
-                //keep_running = false;
             }
         }
     }
