@@ -73,13 +73,9 @@ ByteBuffer b(256);
 //Always call clear before starting to write into the buffer
 b.clear();
 
-std::string_view sv = "Hello ";
-
-b.put(sv)
-
-sv = "World";
-b.put(sv);
-
+//Now we can write in several batches
+b.put("Hello ")
+b.put("World");
 b.put('!');
 
 //This will print 12
@@ -89,5 +85,16 @@ std::cout << b.position << std::endl;
 To read from the buffer first call ``flip()``. This will set the limit to the current position and set the position to 0.
 
 ```
-std::string_view sv2 = b.to 
+b.flip();
+
+chat c;
+
+b.get(c);
+assert(c == 'H');
+
+b.get(c);
+assert(c == 'e');
+
+//10 bytes left to be read
+assert(b.remaining() == 10);
 ```

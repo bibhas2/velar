@@ -30,6 +30,11 @@ static WSInit __wsa_init;
 
 ByteBuffer::ByteBuffer(size_t capacity) {
     array = (char*) ::malloc(capacity);
+
+    if (array == NULL) {
+        throw std::runtime_error("malloc() failed.");
+    }
+
     this->capacity = capacity;
     position = 0;
     limit = capacity;
