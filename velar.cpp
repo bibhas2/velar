@@ -86,7 +86,8 @@ void ByteBuffer::put(char ch) {
 * into the destination at a given offset of the destination.
 * 
 * If insufficient bytes remain in the buffer, that is, remaining() < length, then
-* a std::out_of_range exception is thrown.
+* a std::out_of_range exception is thrown. Otherwise, the position is moved
+* forward by length.
 */
 void ByteBuffer::get(const char* to, size_t offset, size_t length) {
     if (remaining() < length) {
@@ -100,12 +101,50 @@ void ByteBuffer::get(const char* to, size_t offset, size_t length) {
 
 void ByteBuffer::get(char& ch) {
     if (!has_remaining()) {
-        throw std::out_of_range("Insufficient space remaining.");
+        throw std::out_of_range("Insufficient data remaining.");
     }
 
     ch = array[position];
 
     ++position;
+}
+
+/*
+* Shares length bytes from the buffer with the give string_view.
+* No data is copied. That makes this one of the fastest ways to read
+* data from the buffer.
+* 
+* If there's insufficient data left to be read, that is, remaining() < length,
+* then a std::out_of_range exception is thrown. Otherwise, the position is moved
+* forward by length.
+*/
+void ByteBuffer::get(std::string_view& sv, size_t length) {
+    if (remaining() < length) {
+        throw std::out_of_range("Insufficient data remaining.");
+    }
+
+    sv = { array + position, length };
+
+    position += length;
+}
+
+/*
+* Shares all the remaining data with the given string_view.
+* No data is copied. That makes this one of the fastest ways to read
+* data from the buffer.
+* 
+* If there's no remaining data left to be read, that is, has_remaining() == false,
+* then a std::out_of_range exception is thrown. Otherwise, the position is moved
+* to the end of the buffer.
+*/
+void ByteBuffer::get(std::string_view& sv) {
+    if (!has_remaining()) {
+        throw std::out_of_range("Insufficient data remaining.");
+    }
+
+    sv = { array + position, remaining()};
+
+    position += remaining();
 }
 
 static void set_nonblocking(SOCKET socket) {

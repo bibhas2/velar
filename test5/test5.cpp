@@ -87,10 +87,37 @@ void test_get3() {
 	assert(b.remaining() == 0);
 }
 
+void test_get4() {
+	ByteBuffer b(128);
+
+	b.put("Hello Wonderful World");
+
+	b.flip();
+
+	std::string_view sv{};
+
+	b.get(sv, 5);
+
+	assert(sv == "Hello");
+
+	char ch;
+
+	b.get(ch);
+
+	assert(ch == ' ');
+
+	b.get(sv);
+
+	assert(sv == "Wonderful World");
+
+	assert(b.has_remaining() == false);
+}
+
 int main()
 {
 	test_put1();
 	test_get1();
 	test_get2();
 	test_get3();
+	test_get4();
 }

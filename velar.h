@@ -42,6 +42,8 @@ struct ByteBuffer {
 
 	void get(const char* to, size_t offset, size_t length);
 	void get(char& byte);
+	void get(std::string_view& sv, size_t length);
+	void get(std::string_view& sv);
 
 	std::string_view to_string_view() {
 		return std::string_view(array + position, remaining());
