@@ -56,9 +56,41 @@ void test_get2() {
 	assert(b.to_string_view() == "llo World");
 }
 
+void test_get3() {
+	ByteBuffer b(128);
+
+	b.put("Hello World");
+
+	b.flip();
+
+	char dest[10];
+	size_t offset = 2;
+
+	b.get(dest, offset, 5);
+
+	std::string_view sv{ dest + offset, 5 };
+
+	assert(sv == "Hello");
+
+	char ch;
+
+	b.get(ch);
+
+	assert(ch == ' ');
+
+	b.get(dest, offset, 5);
+
+	sv = { dest + offset, 5 };
+
+	assert(sv == "World");
+
+	assert(b.remaining() == 0);
+}
+
 int main()
 {
 	test_put1();
 	test_get1();
 	test_get2();
+	test_get3();
 }

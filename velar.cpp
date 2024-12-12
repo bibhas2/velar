@@ -81,15 +81,19 @@ void ByteBuffer::put(char ch) {
     ++position;
 }
 
+/*
+* Copies length number of bytes from the current position of the buffer
+* into the destination at a given offset of the destination.
+* 
+* If insufficient bytes remain in the buffer, that is, remaining() < length, then
+* a std::out_of_range exception is thrown.
+*/
 void ByteBuffer::get(const char* to, size_t offset, size_t length) {
-    if (offset >= length) {
-        throw std::runtime_error("Invalid parameters.");
-    }
-    if (remaining() < (length - offset)) {
-        throw std::out_of_range("Fewer bytes remaining.");
+    if (remaining() < length) {
+        throw std::out_of_range("Insufficient data remaining.");
     }
 
-    ::memcpy((void*) to, array, (length - offset));
+    ::memcpy((void*) (to + offset), array + position, length);
 
     position += length;
 }
