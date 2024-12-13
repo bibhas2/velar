@@ -845,6 +845,8 @@ int Socket::recvfrom(ByteBuffer& b, sockaddr* from, int* from_len) {
     if (bytes_read == SOCKET_ERROR) {
         int err = ::WSAGetLastError();
 
+        std::cout << "WSAGetLastError:" << err << std::endl;
+
         if (err == WSAECONNRESET) {
             //Ungraceful disconnect by the other party
             return -1;
