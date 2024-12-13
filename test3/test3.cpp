@@ -1,19 +1,19 @@
 #include <iostream>
 #include <velar.h>
 #include <memory>
-
-struct MyData : public SocketAttachment {
-    std::string type;
-
-    MyData(const char* t) : type(t) {
-
-    }
-};
+#include <random>
 
 void server() {
     Selector sel;
     ByteBuffer buff(1024);
     bool keep_running = true;
+    std::random_device rd;
+    std::mt19937 gen(rd()); // Initialize the Mersenne Twister engine with a random seed
+    std::uniform_int_distribution<int> dis(1, 9999); // Define the distribution
+
+    int server_id = dis(gen);
+
+    std::cout << "Server ID: " << server_id << std::endl;
 
     /*
     * Group address and port.
@@ -45,7 +45,12 @@ void server() {
                     std::cout << sv << std::endl;
 
                     buff.clear();
-                    buff.put("MULTICAST RESPONSE");
+
+                    char fmt[1024];
+
+                    sz = ::snprintf(fmt, sizeof(fmt), "MULTICAST RESPONSE FROM: %d", server_id);
+
+                    buff.put(fmt, 0, sz);
 
                     buff.flip();
                     sz = s->sendto(buff, (const sockaddr*)&from_addr, from_len);
@@ -97,8 +102,6 @@ void client() {
                 auto sv = buff.to_string_view();
 
                 std::cout << sv << std::endl;
-
-                keep_running = false;
             }
         } 
         else if (client->is_writable()) {

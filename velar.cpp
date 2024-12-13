@@ -224,29 +224,6 @@ std::shared_ptr<DatagramClientSocket> Selector::start_udp_client(const char* add
         throw std::runtime_error("Failed to resolve address.");
     }
 
-    if (res->ai_family == AF_INET) {
-        std::cout << "AF_INET" << std::endl;
-    }
-    else if (res->ai_family == AF_INET6) {
-        std::cout << "AF_INET6" << std::endl;
-    }
-    else {
-        std::cout << "Unknown family: " << res->ai_family << std::endl;
-    }
-    if (res->ai_socktype == SOCK_DGRAM) {
-        std::cout << "SOCK_DGRAM" << std::endl;
-    }
-    else {
-        std::cout << "Invalid socket type: " << res->ai_socktype << std::endl;
-    }
-    if (res->ai_protocol == IPPROTO_UDP) {
-        std::cout << "IPPROTO_UDP" << std::endl;
-    }
-    else {
-        std::cout << "Invalid protocol: " << res->ai_protocol << std::endl;
-    }
-
-
     /*
     * Creating the socket object here willmake sure res gets freed up
     * no matter what happens.
