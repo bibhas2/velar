@@ -96,26 +96,12 @@ struct Socket {
 		IS_CONN_SUCCESS
 	};
 
-	enum SocketType {
-		CLIENT,
-		SERVER
-	};
-
 	SOCKET fd;
 	std::bitset<9> io_flag;
 	std::shared_ptr<SocketAttachment> attachment;
-	SocketType socket_type;
 
 	Socket();
 	virtual ~Socket();
-
-	bool is_server() {
-		return socket_type == SocketType::SERVER;
-	}
-
-	bool is_client() {
-		return socket_type == SocketType::CLIENT;
-	}
 
 	void report_accpeptable(bool flag) {
 		io_flag.set(IOFlag::REPORT_ACCEPTABLE, flag);

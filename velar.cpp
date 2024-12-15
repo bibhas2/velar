@@ -239,7 +239,6 @@ std::shared_ptr<DatagramClientSocket> Selector::start_udp_client(const char* add
     set_nonblocking(sock);
 
     client->fd = sock;
-    client->socket_type = Socket::SocketType::CLIENT;
     client->attachment = attachment;
 
     sockets.insert(client);
@@ -336,7 +335,6 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
     auto client = std::make_shared<Socket>();
 
     client->fd = sock;
-    client->socket_type = Socket::SocketType::CLIENT;
     client->attachment = attachment;
     client->set_connection_pending(true);
 
@@ -423,7 +421,6 @@ std::shared_ptr<Socket> Selector::start_udp_server(int port, std::shared_ptr<Soc
     auto receiver = std::make_shared<Socket>();
 
     receiver->fd = sock;
-    receiver->socket_type = Socket::SocketType::CLIENT;
     receiver->attachment = attachment;
 
     //Turn this on since all receivers need to read
@@ -482,7 +479,6 @@ std::shared_ptr<Socket> Selector::start_server(int port, std::shared_ptr<SocketA
     auto server = std::make_shared<Socket>();
 
     server->fd = sock;
-    server->socket_type = Socket::SocketType::SERVER;
     server->attachment = attachment;
 
     //Turn this on since all servers will need to catch accept event
@@ -511,7 +507,6 @@ std::shared_ptr<Socket> Selector::accept(std::shared_ptr<Socket> server, std::sh
     auto client = std::make_shared<Socket>();
 
     client->fd = client_fd;
-    client->socket_type = Socket::SocketType::CLIENT;
     client->attachment = attachment;
 
     sockets.insert(client);
@@ -674,7 +669,6 @@ Socket::Socket() {
     fd = INVALID_SOCKET;
 
     io_flag.reset();
-    socket_type = Socket::SocketType::CLIENT;
 }
 
 Socket::~Socket() {

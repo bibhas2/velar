@@ -50,8 +50,8 @@ int main()
                     else if (sv == "list\n") {
                         for (auto& s2 : sel.sockets) {
                             std::cout
-                                << "Type: "
-                                << (s2->is_server() ? "Server" : "Client")
+                                << " Report acceptable: "
+                                << (s2->is_report_acceptable() ? "Yes" : "No")
                                 << " Report readable: "
                                 << (s2->is_report_readable() ? "Yes" : "No")
                                 << " Report writable: "
