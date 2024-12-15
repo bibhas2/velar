@@ -414,15 +414,15 @@ std::shared_ptr<Socket> Selector::start_udp_server(int port, std::shared_ptr<Soc
 
     int reuse = 1;
 
-    int status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof reuse);
+    int status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*) & reuse, sizeof reuse);
     
     check_socket_error(status, "Failed to set SO_REUSEADDR.");
 
-    reuse = 1;
-
-    status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof reuse);
+#ifndef _WIN32
+    status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (const char*) &reuse, sizeof reuse);
     
     check_socket_error(status, "Failed to set SO_REUSEPORT.");
+#endif
 
     // Bind the socket to the multicast port
     struct sockaddr_in6 addr {};
@@ -472,15 +472,15 @@ std::shared_ptr<Socket> Selector::start_server(int port, std::shared_ptr<SocketA
 
     int reuse = 1;
 
-    int status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof reuse);
+    int status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*) &reuse, sizeof reuse);
     
     check_socket_error(status, "Failed to set SO_REUSEADDR.");
 
-    reuse = 1;
+#ifndef _WIN32
+    status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (const char*)&reuse, sizeof reuse);
 
-    status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof reuse);
-    
     check_socket_error(status, "Failed to set SO_REUSEPORT.");
+#endif
 
     /*
     * This will allow IPV4 mapped addresses.
