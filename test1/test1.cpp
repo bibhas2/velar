@@ -5,12 +5,11 @@ int main()
 {
     Selector sel;
     ByteBuffer in_buff(128), out_buff(128);
-    bool keep_running = true;
 
     sel.start_client("www.example.com", 80, nullptr);
 
-    while (keep_running) {
-        int n = sel.select(10);
+    while (true) {
+        int n = sel.select(2);
 
         if (n == 0) {
             //Timeout
@@ -22,7 +21,7 @@ int main()
             if (s->is_connection_failed()) {
                 std::cout << "Connection failed." << std::endl;
 
-                keep_running = false;
+                return 1;
             }
             else if (s->is_connection_success()) {
                 std::cout << "Connection success." << std::endl;
@@ -33,10 +32,10 @@ int main()
                     "Accept: */*\r\n\r\n";
 
                 out_buff.clear();
-                out_buff.put(request, 0, strlen(request));
-                out_buff.flip();
+                out_buff.put(request);
 
                 //Start writing the request
+                out_buff.flip();
                 s->report_writable(true);
             }
             else if (s->is_writable()) {
@@ -44,35 +43,32 @@ int main()
                     int sz = s->write(out_buff);
 
                     if (sz < 0) {
-                        std::cout << "\nClient disconnected\n" << std::endl;
+                        std::cout << "Server disconnected\n" << std::endl;
 
-                        sel.cancel_socket(s);
+                        return 1;
                     }
                 }
                 else {
-                    //Stop writing
+                    //We are done writing request
                     s->report_writable(false);
                     //Start reading
                     s->report_readable(true);
                 }
             }
             else if (s->is_readable()) {
+                //Read as much data as available
                 in_buff.clear();
-
-                //Read as much as available
                 int sz = s->read(in_buff);
 
                 if (sz < 0) {
-                    std::cout << "\nClient disconnected\n" << std::endl;
+                    std::cout << "Server disconnected\n" << std::endl;
 
-                    sel.cancel_socket(s);
+                    return 1;
                 }
                 else if (sz > 0) {
                     in_buff.flip();
 
-                    auto sv = in_buff.to_string_view();
-
-                    std::cout << sv;
+                    std::cout << in_buff.to_string_view();
                 }
             }
         }
