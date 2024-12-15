@@ -486,7 +486,7 @@ std::shared_ptr<Socket> Selector::start_server(int port, std::shared_ptr<SocketA
     server->attachment = attachment;
 
     //Turn this on since all servers will need to catch accept event
-    server->report_readable(true);
+    server->report_accpeptable(true);
 
     sockets.insert(server);
 
@@ -525,7 +525,7 @@ void Selector::populate_fd_set(fd_set& read_fd_set, fd_set& write_fd_set, fd_set
     FD_ZERO(&except_fd_set);
 
     for (auto& s : sockets) {
-        if (s->is_report_readable()) {
+        if (s->is_report_readable() || s->is_report_acceptable()) {
             FD_SET(s->fd, &read_fd_set);
         }
         if (s->is_report_writable()) {
@@ -646,7 +646,15 @@ int Selector::select(long timeout) {
         }
         else {
             s->set_connection_success(false);
-            s->set_readable((FD_ISSET(s->fd, &read_fd_set)));
+
+            //For a server socket readable means new client
+            //waiting to be accepted
+            if (s->is_report_acceptable()) {
+                s->set_acceptable((FD_ISSET(s->fd, &read_fd_set)));
+            } else {
+                s->set_readable((FD_ISSET(s->fd, &read_fd_set)));
+            }
+            
             s->set_writable((FD_ISSET(s->fd, &write_fd_set)));
         }
     }
