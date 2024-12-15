@@ -306,6 +306,16 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
         throw std::runtime_error("Failed to create a socket.");
     }
 
+    /*
+    * Create the Socket here so RAII can close it in case of any error 
+    * below.
+    */
+    auto client = std::make_shared<Socket>();
+
+    client->fd = sock;
+    client->attachment = attachment;
+    client->set_connection_pending(true);
+
     set_nonblocking(sock);
 
     status = ::connect(sock, res->ai_addr, res->ai_addrlen);
@@ -333,12 +343,6 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
         }
 #endif
     }
-
-    auto client = std::make_shared<Socket>();
-
-    client->fd = sock;
-    client->attachment = attachment;
-    client->set_connection_pending(true);
 
     sockets.insert(client);
 
@@ -410,11 +414,13 @@ std::shared_ptr<Socket> Selector::start_udp_server(int port, std::shared_ptr<Soc
     */
     int optval = 0;
 
-    ::setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&optval, sizeof(optval));
+    int status = ::setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&optval, sizeof(optval));
+
+    check_socket_error(status, "Failed to disable IPV6_V6ONLY.");
 
     int reuse = 1;
 
-    int status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*) & reuse, sizeof reuse);
+    status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*) & reuse, sizeof reuse);
     
     check_socket_error(status, "Failed to set SO_REUSEADDR.");
 
@@ -487,7 +493,8 @@ std::shared_ptr<Socket> Selector::start_server(int port, std::shared_ptr<SocketA
     */
     int optval = 0;
     
-    ::setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&optval, sizeof(optval));
+    status = ::setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&optval, sizeof(optval));
+    check_socket_error(status, "Failed to disable IPV6_V6ONLY.");
 
     struct sockaddr_in6 addr {}; //Important to zero out the address
 
@@ -668,7 +675,7 @@ int Selector::select(long timeout) {
         else {
             s->set_connection_success(false);
 
-            //For a server socket readable means new client
+            //For a server socket, readable means new client
             //waiting to be accepted
             if (s->is_report_acceptable()) {
                 s->set_acceptable((FD_ISSET(s->fd, &read_fd_set)));
