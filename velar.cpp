@@ -530,11 +530,11 @@ void Selector::populate_fd_set(fd_set& read_fd_set, fd_set& write_fd_set, fd_set
 }
 
 void Selector::purge_sokets() {
-    for (auto& s : canceled_sockets) {
+    for (auto& s : m_canceled_sockets) {
         m_sockets.erase(s);
     }
 
-    canceled_sockets.clear();
+    m_canceled_sockets.clear();
 }
 
 int Selector::select(long timeout) {
@@ -650,7 +650,7 @@ int Selector::select(long timeout) {
 * The socket will be eventually closed and destroyed.
 */
 void Selector::cancel_socket(std::shared_ptr<Socket> socket) {
-    canceled_sockets.insert(socket);
+    m_canceled_sockets.insert(socket);
 }
 
 Socket::Socket(SOCKET fd) : m_fd(fd) {
@@ -664,7 +664,7 @@ Socket::Socket(int domain, int type, int protocol) : m_fd(INVALID_SOCKET) {
         throw std::runtime_error("Failed to create a socket.");
     }
 
-    io_flag.reset();
+    m_io_flag.reset();
 }
 
 Socket::~Socket() {

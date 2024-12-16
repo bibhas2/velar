@@ -85,7 +85,7 @@ struct SocketAttachment {};
 
 struct Socket {
 private:
-	std::bitset<9> io_flag;
+	std::bitset<9> m_io_flag;
 	SOCKET m_fd;
 	std::shared_ptr<SocketAttachment> m_attachment;
 
@@ -112,75 +112,75 @@ public:
 	}
 
 	void report_accpeptable(bool flag) {
-		io_flag.set(IOFlag::REPORT_ACCEPTABLE, flag);
+		m_io_flag.set(IOFlag::REPORT_ACCEPTABLE, flag);
 	}
 
 	void report_readable(bool flag) {
-		io_flag.set(IOFlag::REPORT_READABLE, flag);
+		m_io_flag.set(IOFlag::REPORT_READABLE, flag);
 	}
 
 	void report_writable(bool flag) {
-		io_flag.set(IOFlag::REPORT_WRITABLE, flag);
+		m_io_flag.set(IOFlag::REPORT_WRITABLE, flag);
 	}
 
 	bool is_report_acceptable() {
-		return io_flag.test(IOFlag::REPORT_ACCEPTABLE);
+		return m_io_flag.test(IOFlag::REPORT_ACCEPTABLE);
 	}
 
 	bool is_report_readable() {
-		return io_flag.test(IOFlag::REPORT_READABLE);
+		return m_io_flag.test(IOFlag::REPORT_READABLE);
 	}
 
 	bool is_report_writable() {
-		return io_flag.test(IOFlag::REPORT_WRITABLE);
+		return m_io_flag.test(IOFlag::REPORT_WRITABLE);
 	}
 
 	void set_acceptable(bool flag) {
-		io_flag.set(IOFlag::IS_ACCEPTABLE, flag);
+		m_io_flag.set(IOFlag::IS_ACCEPTABLE, flag);
 	}
 
 	void set_readable(bool flag) {
-		io_flag.set(IOFlag::IS_READABLE, flag);
+		m_io_flag.set(IOFlag::IS_READABLE, flag);
 	}
 
 	void set_writable(bool flag) {
-		io_flag.set(IOFlag::IS_WRITABLE, flag);
+		m_io_flag.set(IOFlag::IS_WRITABLE, flag);
 	}
 
 	bool is_readable() {
-		return io_flag.test(IOFlag::IS_READABLE);
+		return m_io_flag.test(IOFlag::IS_READABLE);
 	}
 
 	bool is_writable() {
-		return io_flag.test(IOFlag::IS_WRITABLE);
+		return m_io_flag.test(IOFlag::IS_WRITABLE);
 	}
 
 	bool is_acceptable() {
-		return io_flag.test(IOFlag::IS_ACCEPTABLE);
+		return m_io_flag.test(IOFlag::IS_ACCEPTABLE);
 	}
 
 	void set_connection_pending(bool flag) {
-		io_flag.set(IOFlag::IS_CONN_PENDING, flag);
+		m_io_flag.set(IOFlag::IS_CONN_PENDING, flag);
 	}
 
 	bool is_connection_pending() {
-		return io_flag.test(IOFlag::IS_CONN_PENDING);
+		return m_io_flag.test(IOFlag::IS_CONN_PENDING);
 	}
 
 	void set_connection_failed(bool flag) {
-		io_flag.set(IOFlag::IS_CONN_FAILED, flag);
+		m_io_flag.set(IOFlag::IS_CONN_FAILED, flag);
 	}
 
 	bool is_connection_failed() {
-		return io_flag.test(IOFlag::IS_CONN_FAILED);
+		return m_io_flag.test(IOFlag::IS_CONN_FAILED);
 	}
 
 	void set_connection_success(bool flag) {
-		io_flag.set(IOFlag::IS_CONN_SUCCESS, flag);
+		m_io_flag.set(IOFlag::IS_CONN_SUCCESS, flag);
 	}
 
 	bool is_connection_success() {
-		return io_flag.test(IOFlag::IS_CONN_SUCCESS);
+		return m_io_flag.test(IOFlag::IS_CONN_SUCCESS);
 	}
 
 	void attachment(std::shared_ptr<SocketAttachment>& a) {
@@ -231,7 +231,7 @@ struct Selector {
 private:
 	void purge_sokets();
 	void populate_fd_set(fd_set& read_fd_set, fd_set& write_fd_set, fd_set& except_fd_set);
-	std::set<std::shared_ptr<Socket>> canceled_sockets;
+	std::set<std::shared_ptr<Socket>> m_canceled_sockets;
 	std::set<std::shared_ptr<Socket>> m_sockets;
 
 public:
