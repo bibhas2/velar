@@ -113,6 +113,36 @@ void test_get4() {
 	assert(b.has_remaining() == false);
 }
 
+void test_get5() {
+	ByteBuffer b(128);
+	uint32_t i1 = UINT32_MAX, j1{};
+
+	b.clear();
+	b.put(i1);
+	b.flip();
+	b.get(j1);
+
+	assert(i1 == j1);
+
+	uint16_t i2 = UINT16_MAX, j2{};
+
+	b.clear();
+	b.put(i2);
+	b.flip();
+	b.get(j2);
+
+	assert(i2 == j2);
+
+	uint64_t i3 = UINT64_MAX, j3{};
+
+	b.clear();
+	b.put(i3);
+	b.flip();
+	b.get(j3);
+
+	assert(i3 == j3);
+}
+
 int main()
 {
 	test_put1();
@@ -120,4 +150,5 @@ int main()
 	test_get2();
 	test_get3();
 	test_get4();
+	test_get5();
 }

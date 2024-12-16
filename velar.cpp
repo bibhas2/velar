@@ -81,6 +81,24 @@ void ByteBuffer::put(char ch) {
     ++position;
 }
 
+void ByteBuffer::put(uint16_t i) {
+    uint16_t n = ::htons(i);
+
+    put((const char*)&n, 0, sizeof(uint16_t));
+}
+
+void ByteBuffer::put(uint32_t i) {
+    uint32_t n = ::htonl(i);
+
+    put((const char*)&n, 0, sizeof(uint32_t));
+}
+
+void ByteBuffer::put(uint64_t i) {
+    uint64_t n = ::htonll(i);
+
+    put((const char*)&n, 0, sizeof(uint64_t));
+}
+
 /*
 * Copies length number of bytes from the current position of the buffer
 * into the destination at a given offset of the destination.
@@ -145,6 +163,30 @@ void ByteBuffer::get(std::string_view& sv) {
     sv = { array + position, remaining()};
 
     position += remaining();
+}
+
+void ByteBuffer::get(uint16_t& i) {
+    uint16_t n = 0;
+
+    get((const char*)&n, 0, sizeof(uint16_t));
+
+    i = ::ntohs(n);
+}
+
+void ByteBuffer::get(uint32_t& i) {
+    uint32_t n = 0;
+
+    get((const char*)&n, 0, sizeof(uint32_t));
+
+    i = ::ntohl(n);
+}
+
+void ByteBuffer::get(uint64_t& i) {
+    uint64_t n = 0;
+
+    get((const char*)&n, 0, sizeof(uint64_t));
+
+    i = ::ntohll(n);
 }
 
 static void set_nonblocking(SOCKET socket) {
