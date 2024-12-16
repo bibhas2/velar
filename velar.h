@@ -175,6 +175,11 @@ struct Socket {
 		return io_flag.test(IOFlag::IS_CONN_SUCCESS);
 	}
 
+	template<class T>
+	std::shared_ptr<T> get_attachment() {
+		return std::static_pointer_cast<T>(attachment);
+	}
+
 	int read(ByteBuffer& b);
 	int write(ByteBuffer& b);
 	int recvfrom(ByteBuffer& b, sockaddr* from, int* from_len);
