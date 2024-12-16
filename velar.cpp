@@ -243,7 +243,7 @@ std::shared_ptr<DatagramClientSocket> Selector::start_udp_client(const char* add
     client->fd = sock;
     client->attachment = attachment;
 
-    sockets.insert(client);
+    m_sockets.insert(client);
 
     return client;
 }
@@ -344,7 +344,7 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
 #endif
     }
 
-    sockets.insert(client);
+    m_sockets.insert(client);
 
     return client;
 }
@@ -444,7 +444,7 @@ std::shared_ptr<Socket> Selector::start_udp_server(int port, std::shared_ptr<Soc
     //Turn this on since all receivers need to read
     receiver->report_readable(true);
 
-    sockets.insert(receiver);
+    m_sockets.insert(receiver);
 
     return receiver;
 }
@@ -513,7 +513,7 @@ std::shared_ptr<Socket> Selector::start_server(int port, std::shared_ptr<SocketA
     //Turn this on since all servers will need to catch accept event
     server->report_accpeptable(true);
 
-    sockets.insert(server);
+    m_sockets.insert(server);
 
     return server;
 }
@@ -542,7 +542,7 @@ std::shared_ptr<Socket> Selector::accept(std::shared_ptr<Socket> server, std::sh
 
     set_nonblocking(client_fd);
 
-    sockets.insert(client);
+    m_sockets.insert(client);
 
     return client;
 }
@@ -552,7 +552,7 @@ void Selector::populate_fd_set(fd_set& read_fd_set, fd_set& write_fd_set, fd_set
     FD_ZERO(&write_fd_set);
     FD_ZERO(&except_fd_set);
 
-    for (auto& s : sockets) {
+    for (auto& s : m_sockets) {
         if (s->is_report_readable() || s->is_report_acceptable()) {
             FD_SET(s->fd, &read_fd_set);
         }
@@ -576,7 +576,7 @@ void Selector::populate_fd_set(fd_set& read_fd_set, fd_set& write_fd_set, fd_set
 
 void Selector::purge_sokets() {
     for (auto& s : canceled_sockets) {
-        sockets.erase(s);
+        m_sockets.erase(s);
     }
 
     canceled_sockets.clear();
@@ -628,7 +628,7 @@ int Selector::select(long timeout) {
         return num_events;
     }
 
-    for (auto& s : sockets) {
+    for (auto& s : m_sockets) {
         if (s->is_connection_pending()) {
             /*
             * Test for connect() completion status.

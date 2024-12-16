@@ -219,10 +219,10 @@ struct Selector {
 private:
 	void purge_sokets();
 	void populate_fd_set(fd_set& read_fd_set, fd_set& write_fd_set, fd_set& except_fd_set);
+	std::set<std::shared_ptr<Socket>> canceled_sockets;
+	std::set<std::shared_ptr<Socket>> m_sockets;
 
 public:
-	std::set<std::shared_ptr<Socket>> sockets;
-	std::set<std::shared_ptr<Socket>> canceled_sockets;
 
 	std::shared_ptr<Socket> start_udp_server(int port, std::shared_ptr<SocketAttachment> attachment);
 	std::shared_ptr<Socket> start_multicast_server(const char* group_address, int port, std::shared_ptr<SocketAttachment> attachment);
@@ -232,4 +232,8 @@ public:
 	std::shared_ptr<Socket> accept(std::shared_ptr<Socket> server, std::shared_ptr<SocketAttachment> attachment);
 	int select(long timeout=0);
 	void cancel_socket(std::shared_ptr<Socket> socket);
+
+	std::set<std::shared_ptr<Socket>>& sockets() {
+		return m_sockets;
+	}
 };

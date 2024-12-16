@@ -22,7 +22,7 @@ void client()
             continue;
         }
 
-        for (auto& s : sel.sockets) {
+        for (auto& s : sel.sockets()) {
             if (s->is_writable()) {
                 std::cout << "Client sending request." << std::endl;
 
@@ -76,7 +76,7 @@ void server()
     while (keep_running) {
         int n = sel.select();
 
-        for (auto& s : sel.sockets) {
+        for (auto& s : sel.sockets()) {
             if (s->is_readable()) {
                 std::cout << "Server received request." << std::endl;
 

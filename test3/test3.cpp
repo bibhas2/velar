@@ -23,7 +23,7 @@ void server() {
     while (keep_running) {
         sel.select();
 
-        for (auto& s : sel.sockets) {
+        for (auto& s : sel.sockets()) {
             if (s->is_readable()) {
                 std::cout << "Received a request." << std::endl;
 

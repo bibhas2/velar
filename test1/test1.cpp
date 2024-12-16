@@ -17,7 +17,7 @@ int main()
             return 0;
         }
 
-        for (auto& s : sel.sockets) {
+        for (auto& s : sel.sockets()) {
             if (s->is_connection_failed()) {
                 std::cout << "Connection failed." << std::endl;
 

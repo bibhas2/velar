@@ -12,7 +12,7 @@ int main()
     while (keep_running) {
         sel.select();
 
-        for (auto& s : sel.sockets) {
+        for (auto& s : sel.sockets()) {
             if (s->is_acceptable()) {
                 std::cout << "Client connected" << std::endl;
 
@@ -48,7 +48,7 @@ int main()
                         keep_running = false;
                     }
                     else if (sv == "list\n") {
-                        for (auto& s2 : sel.sockets) {
+                        for (auto& s2 : sel.sockets()) {
                             std::cout
                                 << " Report acceptable: "
                                 << (s2->is_report_acceptable() ? "Yes" : "No")
