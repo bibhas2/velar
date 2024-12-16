@@ -87,6 +87,7 @@ struct Socket {
 private:
 	std::bitset<9> io_flag;
 	SOCKET m_fd;
+	std::shared_ptr<SocketAttachment> m_attachment;
 
 public:
 
@@ -101,8 +102,6 @@ public:
 		IS_CONN_FAILED,
 		IS_CONN_SUCCESS
 	};
-
-	std::shared_ptr<SocketAttachment> attachment;
 
 	Socket(int domain, int type, int protocol);
 	Socket(SOCKET fd);
@@ -184,9 +183,13 @@ public:
 		return io_flag.test(IOFlag::IS_CONN_SUCCESS);
 	}
 
+	void attachment(std::shared_ptr<SocketAttachment>& a) {
+		m_attachment = a;
+	}
+
 	template<class T>
-	std::shared_ptr<T> get_attachment() {
-		return std::static_pointer_cast<T>(attachment);
+	std::shared_ptr<T> attachment() {
+		return std::static_pointer_cast<T>(m_attachment);
 	}
 
 	int read(ByteBuffer& b);

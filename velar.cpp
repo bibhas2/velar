@@ -234,7 +234,7 @@ std::shared_ptr<DatagramClientSocket> Selector::start_udp_client(const char* add
 
     set_nonblocking(client->fd());
 
-    client->attachment = attachment;
+    client->attachment(attachment);
 
     m_sockets.insert(client);
 
@@ -295,7 +295,7 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
 
     auto client = std::make_shared<Socket>(res->ai_family, res->ai_socktype, res->ai_protocol);
 
-    client->attachment = attachment;
+    client->attachment(attachment);
     client->set_connection_pending(true);
 
     set_nonblocking(client->fd());
@@ -373,7 +373,7 @@ std::shared_ptr<Socket> Selector::start_udp_server(int port, std::shared_ptr<Soc
     // Create a UDP socket
     auto receiver = std::make_shared<Socket>(AF_INET6, SOCK_DGRAM, 0);
 
-    receiver->attachment = attachment;
+    receiver->attachment(attachment);
 
     /*
     * This will make the socket bind to both ipv6 and ipv4 address.
@@ -428,7 +428,7 @@ std::shared_ptr<Socket> Selector::start_udp_server(int port, std::shared_ptr<Soc
 std::shared_ptr<Socket> Selector::start_server(int port, std::shared_ptr<SocketAttachment> attachment) {
     auto server = std::make_shared<Socket>(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
 
-    server->attachment = attachment;
+    server->attachment(attachment);
 
     set_nonblocking(server->fd());
 
@@ -493,7 +493,7 @@ std::shared_ptr<Socket> Selector::accept(std::shared_ptr<Socket> server, std::sh
     */
     auto client = std::make_shared<Socket>(client_fd);
 
-    client->attachment = attachment;
+    client->attachment(attachment);
 
     set_nonblocking(client_fd);
 
@@ -821,8 +821,6 @@ int Socket::recvfrom(ByteBuffer& b, sockaddr* from, int* from_len) {
 
     if (bytes_read == SOCKET_ERROR) {
         int err = ::WSAGetLastError();
-
-        std::cout << "WSAGetLastError:" << err << std::endl;
 
         if (err == WSAECONNRESET) {
             //Ungraceful disconnect by the other party
