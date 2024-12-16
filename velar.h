@@ -84,6 +84,11 @@ struct ByteBuffer {
 struct SocketAttachment {};
 
 struct Socket {
+private:
+	std::bitset<9> io_flag;
+
+public:
+
 	enum IOFlag {
 		REPORT_ACCEPTABLE,
 		REPORT_READABLE,
@@ -97,7 +102,6 @@ struct Socket {
 	};
 
 	SOCKET fd;
-	std::bitset<9> io_flag;
 	std::shared_ptr<SocketAttachment> attachment;
 
 	Socket();
