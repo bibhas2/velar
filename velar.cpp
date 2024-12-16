@@ -94,7 +94,11 @@ void ByteBuffer::put(uint32_t i) {
 }
 
 void ByteBuffer::put(uint64_t i) {
+#ifdef _WIN32
     uint64_t n = ::htonll(i);
+#else
+    uint64_t n = ::htobe64(i);
+#endif
 
     put((const char*)&n, 0, sizeof(uint64_t));
 }
@@ -186,7 +190,11 @@ void ByteBuffer::get(uint64_t& i) {
 
     get((const char*)&n, 0, sizeof(uint64_t));
 
+#ifdef _WIN32
     i = ::ntohll(n);
+#else
+    i = ::be64toh(n);
+#endif
 }
 
 static void set_nonblocking(SOCKET socket) {

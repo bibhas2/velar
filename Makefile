@@ -15,6 +15,7 @@ test:
 	make -C test2
 	make -C test3
 	make -C test4
+	make -C test5
 	
 clean:
 	rm $(OBJS)
@@ -23,3 +24,4 @@ clean:
 	make -C test2 clean
 	make -C test3 clean
 	make -C test4 clean
+	make -C test5 clean
