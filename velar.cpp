@@ -232,15 +232,8 @@ std::shared_ptr<DatagramClientSocket> Selector::start_udp_client(const char* add
     */
     auto client = std::make_shared<DatagramClientSocket>(res);
 
-    SOCKET sock = ::socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    set_nonblocking(client->fd());
 
-    if (sock == INVALID_SOCKET) {
-        throw std::runtime_error("Failed to create a socket.");
-    }
-
-    set_nonblocking(sock);
-
-    client->fd = sock;
     client->attachment = attachment;
 
     m_sockets.insert(client);
@@ -300,25 +293,14 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
     */
     auto addr_resource = std::unique_ptr<struct addrinfo, void(*)(struct addrinfo*)>(res, free_addrinfo);
 
-    SOCKET sock = ::socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    auto client = std::make_shared<Socket>(res->ai_family, res->ai_socktype, res->ai_protocol);
 
-    if (sock == INVALID_SOCKET) {
-        throw std::runtime_error("Failed to create a socket.");
-    }
-
-    /*
-    * Create the Socket here so RAII can close it in case of any error 
-    * below.
-    */
-    auto client = std::make_shared<Socket>();
-
-    client->fd = sock;
     client->attachment = attachment;
     client->set_connection_pending(true);
 
-    set_nonblocking(sock);
+    set_nonblocking(client->fd());
 
-    status = ::connect(sock, res->ai_addr, res->ai_addrlen);
+    status = ::connect(client->fd(), res->ai_addr, res->ai_addrlen);
 
     /*
     * It is normal for a nonblocking socket to not complete connection immediately.
@@ -331,14 +313,10 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
         auto err = ::WSAGetLastError();
 
         if (err != WSAEWOULDBLOCK) {
-            ::closesocket(sock);
-
             throw std::runtime_error("Failed to connect.");
         }
 #else
         if (errno != EINPROGRESS) {
-            ::close(sock);
-
             throw std::runtime_error("Failed to connect.");
         }
 #endif
@@ -365,7 +343,7 @@ std::shared_ptr<Socket> Selector::start_multicast_server(const char* group_ip, i
         mreq6.ipv6mr_interface = 0;
 
         //Join the group
-        int status = ::setsockopt(receiver->fd, IPPROTO_IPV6, IPV6_JOIN_GROUP, (const char*)&mreq6, sizeof(mreq6));
+        int status = ::setsockopt(receiver->fd(), IPPROTO_IPV6, IPV6_JOIN_GROUP, (const char*)&mreq6, sizeof(mreq6));
 
         check_socket_error(status, "Failed to join multicast group.");
     }
@@ -373,7 +351,7 @@ std::shared_ptr<Socket> Selector::start_multicast_server(const char* group_ip, i
         mreq4.imr_interface.s_addr = INADDR_ANY;
 
         //Join the group
-        int status = ::setsockopt(receiver->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (const char*)&mreq4, sizeof(mreq4));
+        int status = ::setsockopt(receiver->fd(), IPPROTO_IP, IP_ADD_MEMBERSHIP, (const char*)&mreq4, sizeof(mreq4));
 
         check_socket_error(status, "Failed to join multicast group.");
     }
@@ -393,19 +371,8 @@ std::shared_ptr<Socket> Selector::start_multicast_server(const char* group_ip, i
 */
 std::shared_ptr<Socket> Selector::start_udp_server(int port, std::shared_ptr<SocketAttachment> attachment) {
     // Create a UDP socket
-    SOCKET sock = ::socket(AF_INET6, SOCK_DGRAM, 0);
+    auto receiver = std::make_shared<Socket>(AF_INET6, SOCK_DGRAM, 0);
 
-    if (sock == INVALID_SOCKET) {
-        throw std::runtime_error("Failed to create a socket.");
-    }
-
-    /*
-    * Create the socket early up here so if there's any problem down
-    * the road then RAII will close it down.
-    */
-    auto receiver = std::make_shared<Socket>();
-
-    receiver->fd = sock;
     receiver->attachment = attachment;
 
     /*
@@ -414,20 +381,20 @@ std::shared_ptr<Socket> Selector::start_udp_server(int port, std::shared_ptr<Soc
     */
     int optval = 0;
 
-    int status = ::setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&optval, sizeof(optval));
+    int status = ::setsockopt(receiver->fd(), IPPROTO_IPV6, IPV6_V6ONLY, (char*)&optval, sizeof(optval));
 
     check_socket_error(status, "Failed to disable IPV6_V6ONLY.");
 
     int reuse = 1;
 
-    status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*) & reuse, sizeof reuse);
+    status = ::setsockopt(receiver->fd(), SOL_SOCKET, SO_REUSEADDR, (const char*) & reuse, sizeof reuse);
     
     check_socket_error(status, "Failed to set SO_REUSEADDR.");
 
 #ifndef _WIN32
-    status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (const char*) &reuse, sizeof reuse);
+    status = ::setsockopt(receiver->fd(), SOL_SOCKET, SO_REUSEPORT, (const char*) &reuse, sizeof reuse);
     
-    check_socket_error(status, "Failed to set SO_REUSEPORT.");
+    check_socket_error(receiver->fd(), "Failed to set SO_REUSEPORT.");
 #endif
 
     // Bind the socket to the multicast port
@@ -437,7 +404,7 @@ std::shared_ptr<Socket> Selector::start_udp_server(int port, std::shared_ptr<Soc
     addr.sin6_addr = in6addr_any;
     addr.sin6_port = htons(port);
 
-    status = ::bind(sock, (const struct sockaddr*) &addr, sizeof(addr));
+    status = ::bind(receiver->fd(), (const struct sockaddr*) &addr, sizeof(addr));
 
     check_socket_error(status, "Failed to bind to port.");
 
@@ -459,31 +426,20 @@ std::shared_ptr<Socket> Selector::start_udp_server(int port, std::shared_ptr<Soc
 * To shutdown the server just cancel the server socket.
 */
 std::shared_ptr<Socket> Selector::start_server(int port, std::shared_ptr<SocketAttachment> attachment) {
-    SOCKET sock = ::socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+    auto server = std::make_shared<Socket>(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
 
-    if (sock == INVALID_SOCKET) {
-        throw std::runtime_error("Failed to create a socket.");
-    }
-
-    /*
-    * Create the socket early up here so if there's any problem down
-    * the road then RAII will close it down.
-    */
-    auto server = std::make_shared<Socket>();
-
-    server->fd = sock;
     server->attachment = attachment;
 
-    set_nonblocking(sock);
+    set_nonblocking(server->fd());
 
     int reuse = 1;
 
-    int status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*) &reuse, sizeof reuse);
+    int status = ::setsockopt(server->fd(), SOL_SOCKET, SO_REUSEADDR, (const char*) &reuse, sizeof reuse);
     
     check_socket_error(status, "Failed to set SO_REUSEADDR.");
 
 #ifndef _WIN32
-    status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (const char*)&reuse, sizeof reuse);
+    status = ::setsockopt(server->fd(), SOL_SOCKET, SO_REUSEPORT, (const char*)&reuse, sizeof reuse);
 
     check_socket_error(status, "Failed to set SO_REUSEPORT.");
 #endif
@@ -493,7 +449,7 @@ std::shared_ptr<Socket> Selector::start_server(int port, std::shared_ptr<SocketA
     */
     int optval = 0;
     
-    status = ::setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&optval, sizeof(optval));
+    status = ::setsockopt(server->fd(), IPPROTO_IPV6, IPV6_V6ONLY, (char*)&optval, sizeof(optval));
     check_socket_error(status, "Failed to disable IPV6_V6ONLY.");
 
     struct sockaddr_in6 addr {}; //Important to zero out the address
@@ -502,11 +458,11 @@ std::shared_ptr<Socket> Selector::start_server(int port, std::shared_ptr<SocketA
     addr.sin6_addr = ::in6addr_any;
     addr.sin6_port = htons(port);
 
-    status = ::bind(sock, (struct sockaddr*) &addr, sizeof(addr));
+    status = ::bind(server->fd(), (struct sockaddr*) &addr, sizeof(addr));
 
     check_socket_error(status, "Failed to bind to port.");
 
-    status = listen(sock, 10);
+    status = ::listen(server->fd(), 10);
 
     check_socket_error(status, "Failed to listen.");
 
@@ -525,7 +481,7 @@ std::shared_ptr<Socket> Selector::start_server(int port, std::shared_ptr<SocketA
 * socket is cancelled.
 */
 std::shared_ptr<Socket> Selector::accept(std::shared_ptr<Socket> server, std::shared_ptr<SocketAttachment> attachment) {
-    SOCKET client_fd = ::accept(server->fd, NULL, NULL);
+    SOCKET client_fd = ::accept(server->fd(), NULL, NULL);
 
     if (client_fd == INVALID_SOCKET) {
         throw std::runtime_error("accept() failed.");
@@ -535,9 +491,8 @@ std::shared_ptr<Socket> Selector::accept(std::shared_ptr<Socket> server, std::sh
     * Create the Socket early so RAII can clean it up in
     * case of a problem.
     */
-    auto client = std::make_shared<Socket>();
+    auto client = std::make_shared<Socket>(client_fd);
 
-    client->fd = client_fd;
     client->attachment = attachment;
 
     set_nonblocking(client_fd);
@@ -554,10 +509,10 @@ void Selector::populate_fd_set(fd_set& read_fd_set, fd_set& write_fd_set, fd_set
 
     for (auto& s : m_sockets) {
         if (s->is_report_readable() || s->is_report_acceptable()) {
-            FD_SET(s->fd, &read_fd_set);
+            FD_SET(s->fd(), &read_fd_set);
         }
         if (s->is_report_writable()) {
-            FD_SET(s->fd, &write_fd_set);
+            FD_SET(s->fd(), &write_fd_set);
         }
         if (s->is_connection_pending()) {
             /*
@@ -566,9 +521,9 @@ void Selector::populate_fd_set(fd_set& read_fd_set, fd_set& write_fd_set, fd_set
             * In BSD socket, we query writable event and then test for SO_ERROR.
             */
 #ifdef _WIN32
-            FD_SET(s->fd, &except_fd_set);
+            FD_SET(s->fd(), &except_fd_set);
 #endif
-            FD_SET(s->fd, &write_fd_set);
+            FD_SET(s->fd(), &write_fd_set);
 
         }
     }
@@ -639,21 +594,21 @@ int Selector::select(long timeout) {
             * the socket for a successful connection. We must test for the
             * write fd set before except fd set to determine success.
             */
-            if (FD_ISSET(s->fd, &write_fd_set)) {
+            if (FD_ISSET(s->fd(), &write_fd_set)) {
                 s->set_connection_success(true);
                 s->set_connection_pending(false);
             }
-            else if ((FD_ISSET(s->fd, &except_fd_set))) {
+            else if ((FD_ISSET(s->fd(), &except_fd_set))) {
                 //connect() has failed
                 s->set_connection_failed(true);
                 s->set_connection_pending(false);
             }
 #else
-            if (FD_ISSET(s->fd, &write_fd_set)) {
+            if (FD_ISSET(s->fd(), &write_fd_set)) {
                 int valopt;
                 socklen_t lon = sizeof(int);
 
-                if (::getsockopt(s->fd, SOL_SOCKET, SO_ERROR, (void*)(&valopt), &lon) < 0) {
+                if (::getsockopt(s->fd(), SOL_SOCKET, SO_ERROR, (void*)(&valopt), &lon) < 0) {
                     throw std::runtime_error("Error in getsockopt().");
                 }
 
@@ -678,12 +633,12 @@ int Selector::select(long timeout) {
             //For a server socket, readable means new client
             //waiting to be accepted
             if (s->is_report_acceptable()) {
-                s->set_acceptable((FD_ISSET(s->fd, &read_fd_set)));
+                s->set_acceptable((FD_ISSET(s->fd(), &read_fd_set)));
             } else {
-                s->set_readable((FD_ISSET(s->fd, &read_fd_set)));
+                s->set_readable((FD_ISSET(s->fd(), &read_fd_set)));
             }
             
-            s->set_writable((FD_ISSET(s->fd, &write_fd_set)));
+            s->set_writable((FD_ISSET(s->fd(), &write_fd_set)));
         }
     }
 
@@ -698,26 +653,36 @@ void Selector::cancel_socket(std::shared_ptr<Socket> socket) {
     canceled_sockets.insert(socket);
 }
 
-Socket::Socket() {
-    fd = INVALID_SOCKET;
+Socket::Socket(SOCKET fd) : m_fd(fd) {
+
+}
+
+Socket::Socket(int domain, int type, int protocol) : m_fd(INVALID_SOCKET) {
+    m_fd = ::socket(domain, type, protocol);
+
+    if (m_fd == INVALID_SOCKET) {
+        throw std::runtime_error("Failed to create a socket.");
+    }
 
     io_flag.reset();
 }
 
 Socket::~Socket() {
-    if (fd != INVALID_SOCKET) {
+    if (m_fd != INVALID_SOCKET) {
 #ifdef _WIN32
-        ::closesocket(fd);
+        ::closesocket(m_fd);
 #else
         ::close(fd);
 #endif
 
-        fd = INVALID_SOCKET;
+        m_fd = INVALID_SOCKET;
     }
 }
 
-DatagramClientSocket::DatagramClientSocket(addrinfo* addr) : server_address(addr) {
-
+DatagramClientSocket::DatagramClientSocket(addrinfo* res) : 
+    server_address(res),
+    Socket(res->ai_family, res->ai_socktype, res->ai_protocol)
+{
 }
 
 DatagramClientSocket::~DatagramClientSocket() {
@@ -779,7 +744,7 @@ int Socket::read(ByteBuffer& b) {
 
 #ifdef _WIN32
     int bytes_read = ::recv(
-        fd,
+        m_fd,
         b.array + b.position,
         b.remaining(),
         0);
@@ -803,7 +768,7 @@ int Socket::read(ByteBuffer& b) {
     }
 #else
     int bytes_read = ::read(
-        fd,
+        m_fd,
         b.array + b.position,
         b.remaining());
 
@@ -847,7 +812,7 @@ int Socket::recvfrom(ByteBuffer& b, sockaddr* from, int* from_len) {
 
 #ifdef _WIN32
     int bytes_read = ::recvfrom(
-        fd,
+        m_fd,
         b.array + b.position,
         b.remaining(),
         0,
@@ -885,7 +850,7 @@ int Socket::recvfrom(ByteBuffer& b, sockaddr* from, int* from_len) {
     }
 #else
     int bytes_read = ::recvfrom(
-        fd,
+        m_fd,
         b.array + b.position,
         b.remaining(),
         0,
@@ -954,7 +919,7 @@ int Socket::write(ByteBuffer& b) {
 
 #ifdef _WIN32
     int bytes_written = ::send(
-        fd,
+        m_fd,
         b.array + b.position,
         b.remaining(),
         0);
@@ -978,7 +943,7 @@ int Socket::write(ByteBuffer& b) {
     }
 #else
     int bytes_written = ::write(
-        fd,
+        m_fd,
         b.array + b.position,
         b.remaining());
 
@@ -1021,7 +986,7 @@ int Socket::sendto(ByteBuffer& b, const struct sockaddr* to, int to_len) {
 
 #ifdef _WIN32
     int bytes_written = ::sendto(
-        fd,
+        m_fd,
         b.array + b.position,
         b.remaining(),
         0,
@@ -1047,7 +1012,7 @@ int Socket::sendto(ByteBuffer& b, const struct sockaddr* to, int to_len) {
     }
 #else
     int bytes_written = ::sendto(
-        fd,
+        m_fd,
         b.array + b.position,
         b.remaining(),
         0,

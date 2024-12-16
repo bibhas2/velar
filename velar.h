@@ -86,6 +86,7 @@ struct SocketAttachment {};
 struct Socket {
 private:
 	std::bitset<9> io_flag;
+	SOCKET m_fd;
 
 public:
 
@@ -101,11 +102,15 @@ public:
 		IS_CONN_SUCCESS
 	};
 
-	SOCKET fd;
 	std::shared_ptr<SocketAttachment> attachment;
 
-	Socket();
+	Socket(int domain, int type, int protocol);
+	Socket(SOCKET fd);
 	virtual ~Socket();
+
+	SOCKET fd() {
+		return m_fd;
+	}
 
 	void report_accpeptable(bool flag) {
 		io_flag.set(IOFlag::REPORT_ACCEPTABLE, flag);
@@ -190,7 +195,7 @@ public:
 	int sendto(ByteBuffer& b, const struct sockaddr* to, int to_len);
 
 	bool operator<(const Socket& other) const {
-		return fd < other.fd;
+		return m_fd < other.m_fd;
 	}
 
 	//Disable copying
