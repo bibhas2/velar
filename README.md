@@ -18,7 +18,7 @@ I created asynchronous network library before. First in C and then in C++. I nev
 
 # Quick Example
 
-This is a server that listens on port 9080. When a client connects, it simply sends a ``"HELLO VElAR"`` message to the client and disconnects.
+This is a server that listens on port 9080. When a client connects, it simply sends a ``"HELLO VELAR"`` message to the client and disconnects.
 
 ```c++
 #include <velar.h>
