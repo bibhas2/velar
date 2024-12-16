@@ -233,7 +233,7 @@ public:
 	int select(long timeout=0);
 	void cancel_socket(std::shared_ptr<Socket> socket);
 
-	std::set<std::shared_ptr<Socket>>& sockets() {
+	const std::set<std::shared_ptr<Socket>>& sockets() {
 		return m_sockets;
 	}
 };
