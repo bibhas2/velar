@@ -672,7 +672,7 @@ Socket::~Socket() {
 #ifdef _WIN32
         ::closesocket(m_fd);
 #else
-        ::close(fd);
+        ::close(m_fd);
 #endif
 
         m_fd = INVALID_SOCKET;
