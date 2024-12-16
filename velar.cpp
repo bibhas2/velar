@@ -172,6 +172,8 @@ static void check_socket_error(int status, const char* msg) {
     }
 #else
     if (status < 0) {
+        ::perror(msg);
+
         throw std::runtime_error(msg);
     }
 #endif
@@ -239,7 +241,6 @@ std::shared_ptr<DatagramClientSocket> Selector::start_udp_client(const char* add
     set_nonblocking(sock);
 
     client->fd = sock;
-    client->socket_type = Socket::SocketType::CLIENT;
     client->attachment = attachment;
 
     sockets.insert(client);
@@ -305,6 +306,16 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
         throw std::runtime_error("Failed to create a socket.");
     }
 
+    /*
+    * Create the Socket here so RAII can close it in case of any error 
+    * below.
+    */
+    auto client = std::make_shared<Socket>();
+
+    client->fd = sock;
+    client->attachment = attachment;
+    client->set_connection_pending(true);
+
     set_nonblocking(sock);
 
     status = ::connect(sock, res->ai_addr, res->ai_addrlen);
@@ -332,13 +343,6 @@ std::shared_ptr<Socket> Selector::start_client(const char* address, int port, st
         }
 #endif
     }
-
-    auto client = std::make_shared<Socket>();
-
-    client->fd = sock;
-    client->socket_type = Socket::SocketType::CLIENT;
-    client->attachment = attachment;
-    client->set_connection_pending(true);
 
     sockets.insert(client);
 
@@ -396,18 +400,35 @@ std::shared_ptr<Socket> Selector::start_udp_server(int port, std::shared_ptr<Soc
     }
 
     /*
+    * Create the socket early up here so if there's any problem down
+    * the road then RAII will close it down.
+    */
+    auto receiver = std::make_shared<Socket>();
+
+    receiver->fd = sock;
+    receiver->attachment = attachment;
+
+    /*
     * This will make the socket bind to both ipv6 and ipv4 address.
     * This way, a client can connect using either ipv4 or ipv6 address.
     */
     int optval = 0;
 
-    ::setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&optval, sizeof(optval));
+    int status = ::setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&optval, sizeof(optval));
 
-    int on = 1;
+    check_socket_error(status, "Failed to disable IPV6_V6ONLY.");
 
-    int status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&on, sizeof(on));
+    int reuse = 1;
 
+    status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*) & reuse, sizeof reuse);
+    
     check_socket_error(status, "Failed to set SO_REUSEADDR.");
+
+#ifndef _WIN32
+    status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (const char*) &reuse, sizeof reuse);
+    
+    check_socket_error(status, "Failed to set SO_REUSEPORT.");
+#endif
 
     // Bind the socket to the multicast port
     struct sockaddr_in6 addr {};
@@ -419,12 +440,6 @@ std::shared_ptr<Socket> Selector::start_udp_server(int port, std::shared_ptr<Soc
     status = ::bind(sock, (const struct sockaddr*) &addr, sizeof(addr));
 
     check_socket_error(status, "Failed to bind to port.");
-
-    auto receiver = std::make_shared<Socket>();
-
-    receiver->fd = sock;
-    receiver->socket_type = Socket::SocketType::CLIENT;
-    receiver->attachment = attachment;
 
     //Turn this on since all receivers need to read
     receiver->report_readable(true);
@@ -444,26 +459,42 @@ std::shared_ptr<Socket> Selector::start_udp_server(int port, std::shared_ptr<Soc
 * To shutdown the server just cancel the server socket.
 */
 std::shared_ptr<Socket> Selector::start_server(int port, std::shared_ptr<SocketAttachment> attachment) {
-    int status;
-
     SOCKET sock = ::socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
 
     if (sock == INVALID_SOCKET) {
         throw std::runtime_error("Failed to create a socket.");
     }
 
+    /*
+    * Create the socket early up here so if there's any problem down
+    * the road then RAII will close it down.
+    */
+    auto server = std::make_shared<Socket>();
+
+    server->fd = sock;
+    server->attachment = attachment;
+
     set_nonblocking(sock);
 
-    char reuse = 1;
+    int reuse = 1;
 
-    ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof reuse);
+    int status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*) &reuse, sizeof reuse);
     
+    check_socket_error(status, "Failed to set SO_REUSEADDR.");
+
+#ifndef _WIN32
+    status = ::setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (const char*)&reuse, sizeof reuse);
+
+    check_socket_error(status, "Failed to set SO_REUSEPORT.");
+#endif
+
     /*
     * This will allow IPV4 mapped addresses.
     */
     int optval = 0;
     
-    ::setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&optval, sizeof(optval));
+    status = ::setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&optval, sizeof(optval));
+    check_socket_error(status, "Failed to disable IPV6_V6ONLY.");
 
     struct sockaddr_in6 addr {}; //Important to zero out the address
 
@@ -479,14 +510,8 @@ std::shared_ptr<Socket> Selector::start_server(int port, std::shared_ptr<SocketA
 
     check_socket_error(status, "Failed to listen.");
 
-    auto server = std::make_shared<Socket>();
-
-    server->fd = sock;
-    server->socket_type = Socket::SocketType::SERVER;
-    server->attachment = attachment;
-
     //Turn this on since all servers will need to catch accept event
-    server->report_readable(true);
+    server->report_accpeptable(true);
 
     sockets.insert(server);
 
@@ -506,13 +531,16 @@ std::shared_ptr<Socket> Selector::accept(std::shared_ptr<Socket> server, std::sh
         throw std::runtime_error("accept() failed.");
     }
 
-    set_nonblocking(client_fd);
-
+    /*
+    * Create the Socket early so RAII can clean it up in
+    * case of a problem.
+    */
     auto client = std::make_shared<Socket>();
 
     client->fd = client_fd;
-    client->socket_type = Socket::SocketType::CLIENT;
     client->attachment = attachment;
+
+    set_nonblocking(client_fd);
 
     sockets.insert(client);
 
@@ -525,7 +553,7 @@ void Selector::populate_fd_set(fd_set& read_fd_set, fd_set& write_fd_set, fd_set
     FD_ZERO(&except_fd_set);
 
     for (auto& s : sockets) {
-        if (s->is_report_readable()) {
+        if (s->is_report_readable() || s->is_report_acceptable()) {
             FD_SET(s->fd, &read_fd_set);
         }
         if (s->is_report_writable()) {
@@ -646,7 +674,15 @@ int Selector::select(long timeout) {
         }
         else {
             s->set_connection_success(false);
-            s->set_readable((FD_ISSET(s->fd, &read_fd_set)));
+
+            //For a server socket, readable means new client
+            //waiting to be accepted
+            if (s->is_report_acceptable()) {
+                s->set_acceptable((FD_ISSET(s->fd, &read_fd_set)));
+            } else {
+                s->set_readable((FD_ISSET(s->fd, &read_fd_set)));
+            }
+            
             s->set_writable((FD_ISSET(s->fd, &write_fd_set)));
         }
     }
@@ -666,7 +702,6 @@ Socket::Socket() {
     fd = INVALID_SOCKET;
 
     io_flag.reset();
-    socket_type = Socket::SocketType::CLIENT;
 }
 
 Socket::~Socket() {

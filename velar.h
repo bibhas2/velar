@@ -85,8 +85,10 @@ struct SocketAttachment {};
 
 struct Socket {
 	enum IOFlag {
+		REPORT_ACCEPTABLE,
 		REPORT_READABLE,
 		REPORT_WRITABLE,
+		IS_ACCEPTABLE,
 		IS_READABLE,
 		IS_WRITABLE,
 		IS_CONN_PENDING,
@@ -94,25 +96,15 @@ struct Socket {
 		IS_CONN_SUCCESS
 	};
 
-	enum SocketType {
-		CLIENT,
-		SERVER
-	};
-
 	SOCKET fd;
-	std::bitset<7> io_flag;
+	std::bitset<9> io_flag;
 	std::shared_ptr<SocketAttachment> attachment;
-	SocketType socket_type;
 
 	Socket();
 	virtual ~Socket();
 
-	bool is_server() {
-		return socket_type == SocketType::SERVER;
-	}
-
-	bool is_client() {
-		return socket_type == SocketType::CLIENT;
+	void report_accpeptable(bool flag) {
+		io_flag.set(IOFlag::REPORT_ACCEPTABLE, flag);
 	}
 
 	void report_readable(bool flag) {
@@ -123,12 +115,20 @@ struct Socket {
 		io_flag.set(IOFlag::REPORT_WRITABLE, flag);
 	}
 
+	bool is_report_acceptable() {
+		return io_flag.test(IOFlag::REPORT_ACCEPTABLE);
+	}
+
 	bool is_report_readable() {
 		return io_flag.test(IOFlag::REPORT_READABLE);
 	}
 
 	bool is_report_writable() {
 		return io_flag.test(IOFlag::REPORT_WRITABLE);
+	}
+
+	void set_acceptable(bool flag) {
+		io_flag.set(IOFlag::IS_ACCEPTABLE, flag);
 	}
 
 	void set_readable(bool flag) {
@@ -148,7 +148,7 @@ struct Socket {
 	}
 
 	bool is_acceptable() {
-		return is_server() && is_readable();
+		return io_flag.test(IOFlag::IS_ACCEPTABLE);
 	}
 
 	void set_connection_pending(bool flag) {
@@ -173,6 +173,11 @@ struct Socket {
 
 	bool is_connection_success() {
 		return io_flag.test(IOFlag::IS_CONN_SUCCESS);
+	}
+
+	template<class T>
+	std::shared_ptr<T> get_attachment() {
+		return std::static_pointer_cast<T>(attachment);
 	}
 
 	int read(ByteBuffer& b);
