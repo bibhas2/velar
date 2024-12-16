@@ -82,20 +82,20 @@ void ByteBuffer::put(char ch) {
 }
 
 void ByteBuffer::put(uint16_t i) {
-    uint16_t n = ::htons(i);
+    uint16_t n = htons(i);
 
     put((const char*)&n, 0, sizeof(uint16_t));
 }
 
 void ByteBuffer::put(uint32_t i) {
-    uint32_t n = ::htonl(i);
+    uint32_t n = htonl(i);
 
     put((const char*)&n, 0, sizeof(uint32_t));
 }
 
 void ByteBuffer::put(uint64_t i) {
-#ifdef _WIN32
-    uint64_t n = ::htonll(i);
+#if defined _WIN32 || defined __APPLE__
+    uint64_t n = htonll(i);
 #else
     uint64_t n = ::htobe64(i);
 #endif
@@ -174,7 +174,7 @@ void ByteBuffer::get(uint16_t& i) {
 
     get((const char*)&n, 0, sizeof(uint16_t));
 
-    i = ::ntohs(n);
+    i = ntohs(n);
 }
 
 void ByteBuffer::get(uint32_t& i) {
@@ -182,7 +182,7 @@ void ByteBuffer::get(uint32_t& i) {
 
     get((const char*)&n, 0, sizeof(uint32_t));
 
-    i = ::ntohl(n);
+    i = ntohl(n);
 }
 
 void ByteBuffer::get(uint64_t& i) {
@@ -190,10 +190,10 @@ void ByteBuffer::get(uint64_t& i) {
 
     get((const char*)&n, 0, sizeof(uint64_t));
 
-#ifdef _WIN32
-    i = ::ntohll(n);
+#if defined _WIN32 || defined __APPLE__
+    i = ntohll(n);
 #else
-    i = ::be64toh(n);
+    i = be64toh(n);
 #endif
 }
 
