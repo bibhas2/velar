@@ -395,7 +395,7 @@ std::shared_ptr<Socket> Selector::start_multicast_server(const char* group_ip, i
         //Join the group
         int status = ::setsockopt(receiver->fd(), IPPROTO_IPV6, IPV6_JOIN_GROUP, (const char*)&mreq6, sizeof(mreq6));
 
-        check_socket_error(status, "Failed to join multicast group.");
+        check_socket_error(status, "Failed to join ipv6 multicast group.");
     }
     else if (inet_pton(AF_INET, group_ip, &mreq4.imr_multiaddr.s_addr) == 1) {
         mreq4.imr_interface.s_addr = INADDR_ANY;
@@ -403,7 +403,7 @@ std::shared_ptr<Socket> Selector::start_multicast_server(const char* group_ip, i
         //Join the group
         int status = ::setsockopt(receiver->fd(), IPPROTO_IP, IP_ADD_MEMBERSHIP, (const char*)&mreq4, sizeof(mreq4));
 
-        check_socket_error(status, "Failed to join multicast group.");
+        check_socket_error(status, "Failed to join ipv4 multicast group.");
     }
     else {
         throw std::runtime_error("The group IP address is not a valid ipv6 or ipv4 address.");
