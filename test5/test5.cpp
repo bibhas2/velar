@@ -88,7 +88,9 @@ void test_get3() {
 }
 
 void test_get4() {
-	ByteBuffer b(128);
+	//Test wrapped storage
+	char storage[128];
+	ByteBuffer b(storage, sizeof(storage));
 
 	b.put("Hello Wonderful World");
 
@@ -116,31 +118,26 @@ void test_get4() {
 void test_get5() {
 	ByteBuffer b(128);
 	uint32_t i1 = UINT32_MAX, j1{};
-
-	b.clear();
-	b.put(i1);
-	b.flip();
-	b.get(j1);
-
-	assert(i1 == j1);
-
 	uint16_t i2 = UINT16_MAX, j2{};
-
-	b.clear();
-	b.put(i2);
-	b.flip();
-	b.get(j2);
-
-	assert(i2 == j2);
-
 	uint64_t i3 = UINT64_MAX, j3{};
 
 	b.clear();
+
+	b.put(i1);
+	b.put(i2);
 	b.put(i3);
+
 	b.flip();
+
+	b.get(j1);
+	b.get(j2);
 	b.get(j3);
 
+	assert(i1 == j1);
+	assert(i2 == j2);
 	assert(i3 == j3);
+
+	assert(b.has_remaining() == false);
 }
 
 int main()
