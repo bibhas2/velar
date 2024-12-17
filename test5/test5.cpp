@@ -140,6 +140,22 @@ void test_get5() {
 	assert(b.has_remaining() == false);
 }
 
+void test_get6() {
+	//Test wrapped storage
+	std::array<char, 128> storage;
+	ByteBuffer b(storage);
+
+	b.put("Hello Wonderful World");
+
+	b.flip();
+
+	std::string_view sv{};
+
+	b.get(sv, 5);
+
+	assert(sv == "Hello");
+}
+
 int main()
 {
 	test_put1();
@@ -148,4 +164,5 @@ int main()
 	test_get3();
 	test_get4();
 	test_get5();
+	test_get6();
 }

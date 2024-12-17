@@ -5,6 +5,7 @@
 #include <set>
 #include <string_view>
 #include <memory>
+#include <array>
 #include <cstring>
 
 #ifdef _WIN32
@@ -32,8 +33,12 @@ struct ByteBuffer {
 	bool owned;
 
 	ByteBuffer(size_t capacity);
-
 	ByteBuffer(char* data, size_t length);
+
+	template<std::size_t SIZE>
+	ByteBuffer(std::array<char, SIZE>& a) :
+		ByteBuffer(a.data(), a.size()) {
+	}
 
 	~ByteBuffer();
 

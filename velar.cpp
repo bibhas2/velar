@@ -51,7 +51,7 @@ ByteBuffer::ByteBuffer(char* data, size_t length) {
 
 ByteBuffer::~ByteBuffer() {
     if (owned && array != NULL) {
-        free(array);
+        ::free(array);
 
         array = NULL;
     }
