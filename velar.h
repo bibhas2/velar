@@ -107,8 +107,7 @@ struct WrappedByteBuffer : ByteBuffer {
 	~WrappedByteBuffer() {}
 };
 
-/*
-struct MappedByteBuffer : public ByteBuffer {
+struct MappedByteBuffer : ByteBuffer {
 private:
 #ifdef _WIN32
 	HANDLE file_handle = INVALID_HANDLE_VALUE;
@@ -122,7 +121,7 @@ public:
 	MappedByteBuffer(const char* file_name, boolean read_only);
 	~MappedByteBuffer();
 };
-*/
+
 
 struct SocketAttachment {};
 

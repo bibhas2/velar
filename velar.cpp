@@ -199,7 +199,6 @@ WrappedByteBuffer::WrappedByteBuffer(char* data, size_t length) {
     position = 0;
 }
 
-/*
 MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only) {
 #ifdef _WIN32
     file_handle = ::CreateFileA(
@@ -210,17 +209,79 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only) {
         read_only ? OPEN_EXISTING : OPEN_ALWAYS,
         FILE_ATTRIBUTE_NORMAL, 
         NULL);
+
+    if (file_handle == INVALID_HANDLE_VALUE) {
+        cleanup(); //Do manual cleanup. Dtor won't be called.
+
+        throw std::runtime_error("CreateFileA failed.");
+    }
+
+    map_handle = ::CreateFileMappingA(
+        file_handle, 
+        NULL, 
+        read_only ? PAGE_READONLY : PAGE_READWRITE,
+        0, 
+        0, 
+        NULL);
+
+    if (map_handle == INVALID_HANDLE_VALUE) {
+        cleanup(); //Do manual cleanup. Dtor won't be called.
+
+        throw std::runtime_error("CreateFileMappingA failed.");
+    }
+
+    array = (char*) ::MapViewOfFile(map_handle, 
+        read_only ? FILE_MAP_READ : (FILE_MAP_READ | FILE_MAP_WRITE),
+        0, 
+        0, 
+        0);
+
+    if (array == NULL) {
+        cleanup();
+
+        throw std::runtime_error("MapViewOfFile failed.");
+    }
+
+    LARGE_INTEGER sz;
+
+    if (!::GetFileSizeEx(file_handle, &sz)) {
+        cleanup();
+
+        throw std::runtime_error("GetFileSizeEx failed.");
+    }
+
+    capacity = sz.QuadPart;
+    limit = capacity;
+    position = 0;
 #else
 #endif
 }
 
+MappedByteBuffer::~MappedByteBuffer() {
+    cleanup();
+}
+
 void MappedByteBuffer::cleanup() {
 #ifdef _WIN32
-    
+    if (map_handle != INVALID_HANDLE_VALUE) {
+        if (array != NULL) {
+            ::UnmapViewOfFile(array);
+        }
+
+        ::CloseHandle(map_handle);
+
+        map_handle = INVALID_HANDLE_VALUE;
+        array = NULL;
+    }
+    if (file_handle != INVALID_HANDLE_VALUE) {
+        ::CloseHandle(file_handle);
+
+        file_handle = INVALID_HANDLE_VALUE;
+    }
 #else
 #endif
 }
-*/
+
 
 static void set_nonblocking(SOCKET socket) {
 #ifdef _WIN32
