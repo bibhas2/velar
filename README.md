@@ -2,7 +2,7 @@
 
 Velar is a cross platform asynchronous networking library written in C++. It uses ``select()`` for multiplexing and doesn't use any threads.
 
-I created asynchronous network library before. First in C and then in C++. I never quite found them as easy to use as they could be. Then I used Java NIO's selector architecture. It showed me how to create an easy to use library. Velar was influenced by Java NIO's Selector and ByteBuffer.
+Velar was heavily influenced by Java NIO's Selector and ByteBuffer.
 
 # Main Features
 
@@ -33,7 +33,7 @@ int main()
     while (true) {
         sel.select();
 
-        for (auto& s : sel.sockets) {
+        for (auto& s : sel.sockets()) {
             if (s->is_acceptable()) {
                 //We have a new client connection
                 auto client = sel.accept(s, nullptr);
@@ -42,9 +42,12 @@ int main()
                 out_buff.put("HELLO VELAR\r\n");
                 out_buff.flip();
 
+                //We want to know when the client
+                //socket becomes writable.
                 client->report_writable(true);
             }
             else if (s->is_writable()) {
+                //Send message to the client
                 if (out_buff.has_remaining()) {
                     if (s->write(out_buff) < 0) {
                         //Client disconnected
@@ -72,7 +75,7 @@ From the root of the repo run:
 make
 ```
 
-This will build the static library ``libvelar.a`` and all the test executables in test1, test2 etc. folders.
+This will build the static library ``libvelar.a`` and all the test executables in ``test1/build``, ``test2/build`` etc. folders.
 
 ## Windows
 Open the Visual Stidio solution ``velar.sln``. Build the solution (Control+Shift+B). This will create the static library ``velar.lib`` and all the test executables in the ``x64/Debug`` folder.
@@ -91,14 +94,14 @@ Link your executable to the static library ``libvelar.a`` (Linux and MacOS) or `
 # Programming Guide
 
 ## ByteBuffer
-The ByteBuffer class and its derived classes make it easy and safe to deal with asynchronous read and write. Non-blocking I/O requires repeated attempts to fully read or write  data from the socket. ByteBuffer internally manages the state of how much data is yet to be read or written. Here's a quick example.
+The ByteBuffer class and its derived classes make it easy and safe to deal with asynchronous read and write. Non-blocking I/O requires repeated attempts to fully read or write  data from a socket. ByteBuffer internally manages the state of how much data is yet to be read or written. Here's a quick example.
 
 ```c++
 StaticByteBuffer<128> b;
 uint64_t i1 = 10, j1 = 0;
 char ch1 = 'A', ch2 = 0;
 
-//Always clear the buffer before starting to write into it
+//Always clear the buffer before starting to write into it.
 //This is like clearing all the pages of a notebook before
 //you start to write a new story.
 b.clear();
@@ -178,9 +181,9 @@ assert(b.remaining() == 10);
 ```
 
 ## Selector
-A ``Selector`` manages a set of sockets. It detects when a socket is ready to write to or read from and reports that to the application.
+A ``Selector`` manages a set of sockets. It detects various events happening to a socket. Such as, a socket has become readable, writebale or has successfully completed a connection with a server. These events are then reported back to the application.
 
-A most minimal application using a ``Selector`` will look like this. The code doesn't really do anything but shows you the basic boilerplate of all Velar applications. 
+A most minimal application using a ``Selector`` will look like this. It shows you the basic boilerplate of all Velar applications. 
 
 ```c++
 int main()
@@ -189,25 +192,17 @@ int main()
 
     while (true) {
         sel.select();
-    }
 
-    return 0;
-}
-```
-
-You can optionally set a timeout in seconds for the ``select()`` method.
-
-```c++
-int main()
-{
-    Selector sel;
-
-    while (true) {
-        int num_events = sel.select(10);
-
-        if (num_events == 0) {
-            //Timeout
-            return 0;
+        //Loop through all the managed sockets
+        //and see if anything interesting happened.
+        for (auto& s : sel.sockets()) {
+            if (s->is_acceptable()) {
+                //A client has connected
+            } else if (s->is_readable()) {
+                //Data is available to be read
+            } else if (s->is_writable()) {
+                //We can write to this socket
+            }
         }
     }
 
@@ -216,18 +211,7 @@ int main()
 ```
 
 ## TCP Server
-The ``Selector::start_server()`` method starts a new TCP server. It registers the socket with the selector.
-
-```c++
-Selector sel;
-
-auto server1 = sel.start_server(9080, nullptr);
-auto server2 = sel.start_server(9081, nullptr);
-
-while (true) {
-    sel.select();
-}
-```
+The ``Selector::start_server()`` method starts a new TCP server. It registers the server's socket with the selector.
 
 When a client connects to the server, the server socket's ``is_acceptable()`` method will return true.
 
@@ -239,17 +223,25 @@ sel.start_server(9080, nullptr);
 while (true) {
     sel.select();
 
-    for (auto& s : sel.sockets) {
+    for (auto& s : sel.sockets()) {
         if (s->is_acceptable()) {
-            std::cout << "We have a new client" << std::endl;
-
+            //We have a new client. Accept the client.
             auto client = sel.accept(s, nullptr);
+
+            //Opt in to detect readable event
+            client->report_readable(true);
+        } else if (s->is_readable()) {
+            //Data is available to be read
+        } else if (s->is_writable()) {
+            //We can write to this socket
         }
     }
 }
 ```
 
-You should call ``Selector::accept()`` to accept the connection. This will register a new ``Socket`` for the client with the selector.
+You call ``Selector::accept()`` to accept the connection. This will register a new ``Socket`` for the client with the selector.
+
+Read and write events are reported only if opted in. You call ``report_readable(bool)`` and ``report_writable(bool)`` to opt in or out.
 
 When you have multiple servers running, you need to find a way to manage their states. This will help you distinguish between the servers. This is done by setting an attachment to the server's socket.
 
@@ -261,15 +253,17 @@ struct ServerState : public SocketAttachment {
 
 Selector sel;
 
+//Set state data as attachment
 sel.start_server(9080, std::make_shared<ServerState>("SERVER1"));
 sel.start_server(9081, std::make_shared<ServerState>("SERVER2"));
 
 while (true) {
     sel.select();
 
-    for (auto& s : sel.sockets) {
+    for (auto& s : sel.sockets()) {
         if (s->is_acceptable()) {
-            auto state = s->get_attachment<ServerState>();
+            //Get the attachment
+            auto state = s->attachment<ServerState>();
 
             std::cout << "Client for: " << state->name << std::endl;
 
