@@ -4,7 +4,7 @@
 int main()
 {
     Selector sel;
-    ByteBuffer in_buff(128), out_buff(128);
+    HeapByteBuffer in_buff(128), out_buff(128);
     bool keep_running = true;
 
     sel.start_server(9080, nullptr);

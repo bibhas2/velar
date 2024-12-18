@@ -5,7 +5,7 @@
 
 void server() {
     Selector sel;
-    ByteBuffer buff(1024);
+    HeapByteBuffer buff(1024);
     bool keep_running = true;
     std::random_device rd;
     std::mt19937 gen(rd()); // Initialize the Mersenne Twister engine with a random seed
@@ -69,7 +69,7 @@ void server() {
 
 void client() {
     Selector sel;
-    ByteBuffer buff(1024);
+    HeapByteBuffer buff(1024);
     bool keep_running = true;
 
     auto client = sel.start_udp_client("224.0.0.251", 5454, nullptr);
