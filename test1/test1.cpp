@@ -4,7 +4,7 @@
 int main()
 {
     Selector sel;
-    ByteBuffer in_buff(128), out_buff(128);
+    HeapByteBuffer in_buff(128), out_buff(128);
 
     sel.start_client("www.example.com", 80, nullptr);
 

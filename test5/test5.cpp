@@ -6,7 +6,7 @@
 #include <assert.h>
 
 void test_put1() {
-	ByteBuffer b(128);
+	HeapByteBuffer b(128);
 
 	b.put("Hello World");
 	b.put('!');
@@ -17,7 +17,7 @@ void test_put1() {
 }
 
 void test_get1() {
-	ByteBuffer b(128);
+	HeapByteBuffer b(128);
 
 	b.put("Hello World");
 
@@ -39,7 +39,7 @@ void test_get1() {
 }
 
 void test_get2() {
-	ByteBuffer b(128);
+	HeapByteBuffer b(128);
 
 	b.put("Hello World");
 
@@ -57,7 +57,7 @@ void test_get2() {
 }
 
 void test_get3() {
-	ByteBuffer b(128);
+	HeapByteBuffer b(128);
 
 	b.put("Hello World");
 
@@ -87,10 +87,10 @@ void test_get3() {
 	assert(b.remaining() == 0);
 }
 
-void test_get4() {
+void test_wrapped1() {
 	//Test wrapped storage
 	char storage[128];
-	ByteBuffer b(storage, sizeof(storage));
+	WrappedByteBuffer b(storage, sizeof(storage));
 
 	b.put("Hello Wonderful World");
 
@@ -116,7 +116,9 @@ void test_get4() {
 }
 
 void test_get5() {
-	ByteBuffer b(128);
+	//Test integer I/O
+
+	StaticByteBuffer<128> b;
 	uint32_t i1 = UINT32_MAX, j1{};
 	uint16_t i2 = UINT16_MAX, j2{};
 	uint64_t i3 = UINT64_MAX, j3{};
@@ -140,10 +142,9 @@ void test_get5() {
 	assert(b.has_remaining() == false);
 }
 
-void test_get6() {
-	//Test wrapped storage
-	std::array<char, 128> storage;
-	ByteBuffer b(storage);
+void test_static1() {
+	//Test static storage
+	StaticByteBuffer<128> b;
 
 	b.put("Hello Wonderful World");
 
@@ -162,7 +163,7 @@ int main()
 	test_get1();
 	test_get2();
 	test_get3();
-	test_get4();
+	test_wrapped1();
 	test_get5();
-	test_get6();
+	test_static1();
 }

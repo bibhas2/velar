@@ -5,7 +5,6 @@
 #include <set>
 #include <string_view>
 #include <memory>
-#include <array>
 #include <cstring>
 
 #ifdef _WIN32
@@ -27,20 +26,13 @@ using SOCKET = int;
 
 struct ByteBuffer {
 	char *array = NULL;
-	size_t position;
-	size_t capacity;
-	size_t limit;
-	bool owned;
+	size_t position = 0;
+	size_t capacity = 0;
+	size_t limit = 0;
+	bool owned = false;
 
-	ByteBuffer(size_t capacity);
-	ByteBuffer(char* data, size_t length);
-
-	template<std::size_t SIZE>
-	ByteBuffer(std::array<char, SIZE>& a) :
-		ByteBuffer(a.data(), a.size()) {
-	}
-
-	~ByteBuffer();
+	ByteBuffer() {}
+	virtual ~ByteBuffer() = 0;
 
 	void put(const char* from, size_t offset, size_t length);
 	void put(std::string_view);
@@ -56,7 +48,6 @@ struct ByteBuffer {
 	void get(uint16_t& i);
 	void get(uint32_t& i);
 	void get(uint64_t& i);
-
 
 	std::string_view to_string_view() {
 		return std::string_view(array + position, remaining());
@@ -92,6 +83,47 @@ struct ByteBuffer {
 	ByteBuffer(ByteBuffer&&) = delete;
 	ByteBuffer& operator=(ByteBuffer&&) = delete;
 };
+
+template<std::size_t SIZE>
+struct StaticByteBuffer : ByteBuffer {
+private:
+	char storage[SIZE];
+public:
+	StaticByteBuffer() : storage{}  {
+		array = storage;
+		capacity = SIZE;
+		limit = SIZE;
+		position = 0;
+	}
+	~StaticByteBuffer() {}
+};
+
+struct HeapByteBuffer : ByteBuffer {
+	HeapByteBuffer(size_t sz);
+	~HeapByteBuffer();
+};
+
+struct WrappedByteBuffer : ByteBuffer {
+	WrappedByteBuffer(char* data, size_t length);
+	~WrappedByteBuffer() {}
+};
+
+/*
+struct MappedByteBuffer : public ByteBuffer {
+private:
+#ifdef _WIN32
+	HANDLE file_handle = INVALID_HANDLE_VALUE;
+	HANDLE map_handle = INVALID_HANDLE_VALUE;
+#else
+	int file_handle = -1;
+#endif
+	void cleanup();
+
+public:
+	MappedByteBuffer(const char* file_name, boolean read_only);
+	~MappedByteBuffer();
+};
+*/
 
 struct SocketAttachment {};
 

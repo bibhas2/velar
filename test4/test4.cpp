@@ -4,7 +4,7 @@
 void client()
 {
     Selector sel;
-    ByteBuffer cli_buff(1024);
+    HeapByteBuffer cli_buff(1024);
     bool keep_running = true;
 
     auto client = sel.start_udp_client("localhost", 2024, nullptr);
@@ -68,7 +68,7 @@ void server()
 {
     Selector sel;
     //A small buffer is used to test for partial read
-    ByteBuffer srv_buff(10);
+    HeapByteBuffer srv_buff(10);
     bool keep_running = true;
 
     sel.start_udp_server(2024, nullptr);

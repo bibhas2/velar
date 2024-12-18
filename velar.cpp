@@ -26,36 +26,11 @@ public:
 static WSInit __wsa_init;
 #else
 #include <arpa/inet.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #endif
 
-ByteBuffer::ByteBuffer(size_t capacity) {
-    array = (char*) ::malloc(capacity);
-
-    if (array == NULL) {
-        throw std::runtime_error("malloc() failed.");
-    }
-
-    this->capacity = capacity;
-    position = 0;
-    limit = capacity;
-    owned = true;
-}
-
-ByteBuffer::ByteBuffer(char* data, size_t length) {
-    array = data;
-    capacity = length;
-    position = 0;
-    limit = length;
-    owned = false;
-}
-
-ByteBuffer::~ByteBuffer() {
-    if (owned && array != NULL) {
-        ::free(array);
-
-        array = NULL;
-    }
-}
+ByteBuffer::~ByteBuffer() {}
 
 void ByteBuffer::put(const char* from, size_t offset, size_t length) {
     if (length > remaining()) {
@@ -196,6 +171,56 @@ void ByteBuffer::get(uint64_t& i) {
     i = be64toh(n);
 #endif
 }
+
+HeapByteBuffer::HeapByteBuffer(size_t sz) {
+    array = (char*) ::malloc(sz);
+
+    if (array == NULL) {
+        throw std::runtime_error("malloc() failed.");
+    }
+
+    capacity = sz;
+    position = 0;
+    limit = sz;
+}
+
+HeapByteBuffer::~HeapByteBuffer() {
+    if (array != NULL) {
+        ::free(array);
+
+        array = NULL;
+    }
+}
+
+WrappedByteBuffer::WrappedByteBuffer(char* data, size_t length) {
+    array = data;
+    capacity = length;
+    limit = length;
+    position = 0;
+}
+
+/*
+MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only) {
+#ifdef _WIN32
+    file_handle = ::CreateFileA(
+        file_name, 
+        read_only ? GENERIC_READ : (GENERIC_READ | GENERIC_WRITE),
+        0, 
+        NULL, 
+        read_only ? OPEN_EXISTING : OPEN_ALWAYS,
+        FILE_ATTRIBUTE_NORMAL, 
+        NULL);
+#else
+#endif
+}
+
+void MappedByteBuffer::cleanup() {
+#ifdef _WIN32
+    
+#else
+#endif
+}
+*/
 
 static void set_nonblocking(SOCKET socket) {
 #ifdef _WIN32
