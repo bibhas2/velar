@@ -203,10 +203,10 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only) {
 #ifdef _WIN32
     file_handle = ::CreateFileA(
         file_name, 
-        read_only ? GENERIC_READ : (GENERIC_READ | GENERIC_WRITE),
+        (read_only ? GENERIC_READ : (GENERIC_READ | GENERIC_WRITE)),
         0, 
         NULL, 
-        read_only ? OPEN_EXISTING : OPEN_ALWAYS,
+        OPEN_EXISTING,
         FILE_ATTRIBUTE_NORMAL, 
         NULL);
 
@@ -216,22 +216,36 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only) {
         throw std::runtime_error("CreateFileA failed.");
     }
 
+    LARGE_INTEGER file_size;
+
+    if (!::GetFileSizeEx(file_handle, &file_size)) {
+        cleanup();
+
+        throw std::runtime_error("GetFileSizeEx failed.");
+    }
+
+    if (file_size.QuadPart == 0) {
+        cleanup();
+
+        throw std::runtime_error("Zero length file cannot be mapped in Windows.");
+    }
+
     map_handle = ::CreateFileMappingA(
         file_handle, 
         NULL, 
-        read_only ? PAGE_READONLY : PAGE_READWRITE,
+        (read_only ? PAGE_READONLY : PAGE_READWRITE),
         0, 
         0, 
         NULL);
 
-    if (map_handle == INVALID_HANDLE_VALUE) {
+    if (map_handle == NULL) {
         cleanup(); //Do manual cleanup. Dtor won't be called.
 
         throw std::runtime_error("CreateFileMappingA failed.");
     }
 
     array = (char*) ::MapViewOfFile(map_handle, 
-        read_only ? FILE_MAP_READ : (FILE_MAP_READ | FILE_MAP_WRITE),
+        read_only ? FILE_MAP_READ : (FILE_MAP_WRITE),
         0, 
         0, 
         0);
@@ -242,15 +256,7 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only) {
         throw std::runtime_error("MapViewOfFile failed.");
     }
 
-    LARGE_INTEGER sz;
-
-    if (!::GetFileSizeEx(file_handle, &sz)) {
-        cleanup();
-
-        throw std::runtime_error("GetFileSizeEx failed.");
-    }
-
-    capacity = sz.QuadPart;
+    capacity = file_size.QuadPart;
     limit = capacity;
     position = 0;
 #else
@@ -263,18 +269,20 @@ MappedByteBuffer::~MappedByteBuffer() {
 
 void MappedByteBuffer::cleanup() {
 #ifdef _WIN32
-    if (map_handle != INVALID_HANDLE_VALUE) {
+    BOOL status;
+
+    if (map_handle != NULL) {
         if (array != NULL) {
-            ::UnmapViewOfFile(array);
+            status = ::UnmapViewOfFile(array);
         }
 
-        ::CloseHandle(map_handle);
+        status = ::CloseHandle(map_handle);
 
-        map_handle = INVALID_HANDLE_VALUE;
+        map_handle = NULL;
         array = NULL;
     }
     if (file_handle != INVALID_HANDLE_VALUE) {
-        ::CloseHandle(file_handle);
+        status = ::CloseHandle(file_handle);
 
         file_handle = INVALID_HANDLE_VALUE;
     }

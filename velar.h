@@ -111,7 +111,7 @@ struct MappedByteBuffer : ByteBuffer {
 private:
 #ifdef _WIN32
 	HANDLE file_handle = INVALID_HANDLE_VALUE;
-	HANDLE map_handle = INVALID_HANDLE_VALUE;
+	HANDLE map_handle = NULL;
 #else
 	int file_handle = -1;
 #endif
