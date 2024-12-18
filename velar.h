@@ -29,7 +29,6 @@ struct ByteBuffer {
 	size_t position = 0;
 	size_t capacity = 0;
 	size_t limit = 0;
-	bool owned = false;
 
 	ByteBuffer() {}
 	virtual ~ByteBuffer() = 0;
