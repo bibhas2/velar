@@ -26,7 +26,7 @@ This is a server that listens on port 9080. When a client connects, it simply se
 int main()
 {
     Selector sel;
-    ByteBuffer out_buff(128);
+    StaticByteBuffer<128> out_buff;
 
     sel.start_server(9080, nullptr);
 
@@ -91,20 +91,50 @@ Link your executable to the static library ``libvelar.a`` (Linux and MacOS) or `
 # Programming Guide
 
 ## ByteBuffer
-The ByteBuffer class makes it easy and safe to deal with asynchronous read and write. Non-blocking I/O requires repeated attempts to fully read or write the data. ByteBuffer internally manages the state of how much data is yet to be read or written.
+The ByteBuffer class and its derived classes make it easy and safe to deal with asynchronous read and write. Non-blocking I/O requires repeated attempts to fully read or write  data from the socket. ByteBuffer internally manages the state of how much data is yet to be read or written. Here's a quick example.
 
-We can create a ByteBuffer that allocates memory on the heap.
+```c++
+StaticByteBuffer<128> b;
+uint64_t i1 = 10, j1 = 0;
+char ch1 = 'A', ch2 = 0;
+
+//Always clear the buffer before starting to write into it
+//This is like clearing all the pages of a notebook before
+//you start to write a new story.
+b.clear();
+b.put(i1);
+b.put(ch1);
+
+//Flip the buffer before starting to read from it.
+//This is like flipping the notebook back to the first page
+//before you start to read the story.
+b.flip();
+b.get(j1);
+b.get(ch2);
+
+assert(i1 == j1);
+assert(ch1 == ch2);
+```
+
+In most cases we can statically allocate memory for a ByteBuffer like this. This is the fastest option since very little work has to be done at runtime to allocate memory or free it.
+
+```c++
+//Capacity of 128 bytes
+StaticByteBuffer<128> b;
+```
+
+We can also create a ByteBuffer that allocates memory on the heap.
 
 ```c++
 //Create a buffer with a capacity of 256 bytes.
-ByteBuffer b(256);
+HeapByteBuffer b(256);
 ```
 
 You can also allocate your own memory and wrap it by a ByteBuffer. In that case, the buffer doesn't own the memory and is not responsible for freeing it.
 
 ```c++
 char data[256];
-ByteBuffer b(data, 256);
+WrappedByteBuffer b(data, sizeof(data));
 ```
 
 Two most important properties of a ByteBuffer are ``limit`` and ``position``.
@@ -115,8 +145,8 @@ Two most important properties of a ByteBuffer are ``limit`` and ``position``.
 
 To write data into a buffer, first you call ``clear()`` to set the position to 0 and limit to the capcity. Then you use various put methods to repeatedly write data.
 
-```
-ByteBuffer b(256);
+```c++
+StaticByteBuffer<256> b;
 
 //Always call clear before starting to write into the buffer
 b.clear();
@@ -132,7 +162,7 @@ std::cout << b.position << std::endl;
 
 To read from the buffer first call ``flip()``. This will set the limit to the current position and set the position to 0.
 
-```
+```c++
 b.flip();
 
 chat c;
