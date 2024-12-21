@@ -199,14 +199,15 @@ WrappedByteBuffer::WrappedByteBuffer(char* data, size_t length) {
     position = 0;
 }
 
-MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only) {
+MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only, size_t max_size) {
 #ifdef _WIN32
     file_handle = ::CreateFileA(
         file_name, 
         (read_only ? GENERIC_READ : (GENERIC_READ | GENERIC_WRITE)),
         0, 
         NULL, 
-        OPEN_EXISTING,
+        //If read only, then it must exist. Otherwise, we create it.
+        (read_only ? OPEN_EXISTING : OPEN_ALWAYS),
         FILE_ATTRIBUTE_NORMAL, 
         NULL);
 
@@ -224,7 +225,7 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only) {
         throw std::runtime_error("GetFileSizeEx failed.");
     }
 
-    if (file_size.QuadPart == 0) {
+    if (read_only && max_size == 0 && file_size.QuadPart == 0) {
         cleanup();
 
         throw std::runtime_error("Zero length file cannot be mapped in Windows.");
@@ -234,8 +235,8 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only) {
         file_handle, 
         NULL, 
         (read_only ? PAGE_READONLY : PAGE_READWRITE),
-        0, 
-        0, 
+        max_size >> 32, 
+        (DWORD) max_size,
         NULL);
 
     if (map_handle == NULL) {
@@ -256,7 +257,7 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only) {
         throw std::runtime_error("MapViewOfFile failed.");
     }
 
-    capacity = file_size.QuadPart;
+    capacity = (max_size == 0 ? file_size.QuadPart : max_size);
     limit = capacity;
     position = 0;
 #else

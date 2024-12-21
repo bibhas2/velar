@@ -118,7 +118,7 @@ private:
 	void cleanup();
 
 public:
-	MappedByteBuffer(const char* file_name, boolean read_only);
+	MappedByteBuffer(const char* file_name, boolean read_only = true, size_t max_size=0);
 	~MappedByteBuffer();
 };
 
