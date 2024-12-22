@@ -214,7 +214,7 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only, siz
     if (file_handle == INVALID_HANDLE_VALUE) {
         cleanup(); //Do manual cleanup. Dtor won't be called.
 
-        throw std::runtime_error("CreateFileA failed.");
+        throw std::system_error(::GetLastError(), std::system_category(), "CreateFileA failed.");
     }
 
     LARGE_INTEGER file_size;
@@ -222,7 +222,7 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only, siz
     if (!::GetFileSizeEx(file_handle, &file_size)) {
         cleanup();
 
-        throw std::runtime_error("GetFileSizeEx failed.");
+        throw std::system_error(::GetLastError(), std::system_category(), "GetFileSizeEx failed.");
     }
 
     if (read_only && max_size == 0 && file_size.QuadPart == 0) {
@@ -242,7 +242,7 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only, siz
     if (map_handle == NULL) {
         cleanup(); //Do manual cleanup. Dtor won't be called.
 
-        throw std::runtime_error("CreateFileMappingA failed.");
+        throw std::system_error(::GetLastError(), std::system_category(), "CreateFileMappingA failed.");
     }
 
     array = (char*) ::MapViewOfFile(map_handle, 
@@ -254,7 +254,7 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only, siz
     if (array == NULL) {
         cleanup();
 
-        throw std::runtime_error("MapViewOfFile failed.");
+        throw std::system_error(::GetLastError(), std::system_category(), "MapViewOfFile failed.");
     }
 
     capacity = (max_size == 0 ? file_size.QuadPart : max_size);
@@ -265,7 +265,7 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only, siz
     
     if (file_handle < 0) {
         cleanup();
-        throw std::runtime_error("open() failed");
+        throw std::system_error(errno, std::generic_category(), "open() failed");
         
         return;
     }
@@ -274,7 +274,7 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only, siz
     
     if (stat(file_name, &sbuf) == -1) {
         cleanup();
-        throw std::runtime_error("stat() failed");
+        throw std::system_error(errno, std::generic_category(), "stat() failed");
         
         return;
     }
@@ -290,7 +290,7 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only, siz
     
     if (start == MAP_FAILED) {
         cleanup();
-        throw std::runtime_error("mmap() failed");
+        throw std::system_error(errno, std::generic_category(), "mmap() failed");
         
         return;
     }
