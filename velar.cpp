@@ -261,6 +261,44 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only, siz
     limit = capacity;
     position = 0;
 #else
+    file_handle = ::open(file_name, read_only ? O_RDONLY : O_RDWR);
+    
+    if (file_handle < 0) {
+        cleanup();
+        throw std::runtime_error("open() failed");
+        
+        return;
+    }
+    
+    struct stat sbuf;
+    
+    if (stat(file_name, &sbuf) == -1) {
+        cleanup();
+        throw std::runtime_error("stat() failed");
+        
+        return;
+    }
+
+    file_size = sbuf.st_size;
+    
+    void *start = ::mmap(nullptr, 
+        max_size == 0 ? file_size : max_size, 
+        read_only ? PROT_READ : (PROT_READ | PROT_WRITE), 
+        MAP_FILE | MAP_SHARED, 
+        file_handle, 
+        0);
+    
+    if (start == MAP_FAILED) {
+        cleanup();
+        throw std::runtime_error("mmap() failed");
+        
+        return;
+    }
+    
+    array = (char*) start;
+    capacity = (max_size == 0 ? file_size : max_size);
+    limit = capacity;
+    position = 0;
 #endif
 }
 
@@ -288,6 +326,21 @@ void MappedByteBuffer::cleanup() {
         file_handle = INVALID_HANDLE_VALUE;
     }
 #else
+    if (array != NULL) {
+        if (::munmap((void*) array, capacity) < 0) {
+            perror("munmap() failed");
+        }
+        
+        array = NULL;
+    }
+    
+    if (file_handle >= 0) {
+        if (::close(file_handle) < 0) {
+            perror("close() failed.");
+        }
+        
+        file_handle = -1;
+    }
 #endif
 }
 
