@@ -279,7 +279,7 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only, siz
         return;
     }
 
-    file_size = sbuf.st_size;
+    size_t file_size = sbuf.st_size;
     
     void *start = ::mmap(nullptr, 
         max_size == 0 ? file_size : max_size, 
