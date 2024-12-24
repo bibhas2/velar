@@ -967,7 +967,7 @@ int Socket::read(ByteBuffer& b) {
 #else
     int bytes_read = ::read(
         m_fd,
-        b.array + b.position,
+        b.array() + b.position(),
         b.remaining());
 
     if (bytes_read < 0) {
@@ -1047,7 +1047,7 @@ int Socket::recvfrom(ByteBuffer& b, sockaddr* from, int* from_len) {
 #else
     int bytes_read = ::recvfrom(
         m_fd,
-        b.array + b.position,
+        b.array() + b.position(),
         b.remaining(),
         0,
         from,
@@ -1140,7 +1140,7 @@ int Socket::write(ByteBuffer& b) {
 #else
     int bytes_written = ::write(
         m_fd,
-        b.array + b.position,
+        b.array() + b.position(),
         b.remaining());
 
     if (bytes_written < 0) {
@@ -1209,7 +1209,7 @@ int Socket::sendto(ByteBuffer& b, const struct sockaddr* to, int to_len) {
 #else
     int bytes_written = ::sendto(
         m_fd,
-        b.array + b.position,
+        b.array() + b.position(),
         b.remaining(),
         0,
         to,
