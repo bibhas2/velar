@@ -295,10 +295,10 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only, siz
         return;
     }
     
-    array = (char*) start;
-    capacity = (max_size == 0 ? file_size : max_size);
-    limit = capacity;
-    position = 0;
+    m_array = (char*) start;
+    m_capacity = (max_size == 0 ? file_size : max_size);
+    m_limit = capacity;
+    m_position = 0;
 #endif
 }
 
@@ -326,12 +326,12 @@ void MappedByteBuffer::cleanup() {
         file_handle = INVALID_HANDLE_VALUE;
     }
 #else
-    if (array != NULL) {
-        if (::munmap((void*) array, capacity) < 0) {
+    if (m_array != NULL) {
+        if (::munmap((void*) m_array, capacity) < 0) {
             perror("munmap() failed");
         }
         
-        array = NULL;
+        m_array = NULL;
     }
     
     if (file_handle >= 0) {
