@@ -31,7 +31,7 @@ void test_get1() {
 
 	assert(sv == expected);
 
-	assert(b.position == 5);
+	assert(b.position() == 5);
 
 	expected = " World";
 

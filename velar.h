@@ -25,11 +25,13 @@ using SOCKET = int;
 #endif
 
 struct ByteBuffer {
-	char *array = NULL;
-	size_t position = 0;
-	size_t capacity = 0;
-	size_t limit = 0;
+protected:
+	char *m_array = NULL;
+	size_t m_position = 0;
+	size_t m_capacity = 0;
+	size_t m_limit = 0;
 
+public:
 	ByteBuffer() {}
 	virtual ~ByteBuffer() = 0;
 
@@ -49,11 +51,43 @@ struct ByteBuffer {
 	void get(uint64_t& i);
 
 	std::string_view to_string_view() {
-		return std::string_view(array + position, remaining());
+		return std::string_view(m_array + m_position, remaining());
+	}
+
+	char* array() {
+		return m_array;
+	}
+
+	size_t position() {
+		return m_position;
+	}
+
+	size_t limit() {
+		return m_limit;
+	}
+
+	size_t capacity() {
+		return m_capacity;
+	}
+
+	void position(size_t pos) {
+		if (pos > m_limit) {
+			throw std::out_of_range("Position is greater than limit.");
+		}
+
+		m_position = pos;
+	}
+
+	void limit(size_t lim) {
+		if (lim > m_capacity) {
+			throw std::out_of_range("Limit is greater than capacity.");
+		}
+
+		m_limit = lim;
 	}
 
 	size_t remaining() {
-		return (limit - position);
+		return (m_limit - m_position);
 	}
 
 	bool has_remaining() {
@@ -61,17 +95,17 @@ struct ByteBuffer {
 	}
 
 	void rewind() {
-		position = 0;
+		m_position = 0;
 	}
 
 	void clear() {
-		limit = capacity;
-		position = 0;
+		m_limit = m_capacity;
+		m_position = 0;
 	}
 
 	void flip() {
-		limit = position;
-		position = 0;
+		m_limit = m_position;
+		m_position = 0;
 	}
 
 	//Disable copying
@@ -89,10 +123,10 @@ private:
 	char storage[SIZE];
 public:
 	StaticByteBuffer() : storage{}  {
-		array = storage;
-		capacity = SIZE;
-		limit = SIZE;
-		position = 0;
+		m_array = storage;
+		m_capacity = SIZE;
+		m_limit = SIZE;
+		m_position = 0;
 	}
 	~StaticByteBuffer() {}
 };
