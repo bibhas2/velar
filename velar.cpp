@@ -199,7 +199,7 @@ WrappedByteBuffer::WrappedByteBuffer(char* data, size_t length) {
     m_position = 0;
 }
 
-MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only, size_t max_size) {
+MappedByteBuffer::MappedByteBuffer(const char* file_name, bool read_only, size_t max_size) {
 #ifdef _WIN32
     file_handle = ::CreateFileA(
         file_name, 
