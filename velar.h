@@ -90,6 +90,14 @@ public:
 		return (m_limit - m_position);
 	}
 
+	/**
+	 * @brief Checks if there are remaining elements.
+	 * 
+	 * This function determines whether there are any remaining elements
+	 * by checking if the result of the `remaining()` function is greater than zero.
+	 * 
+	 * @return true if there are remaining elements, false otherwise.
+	 */
 	bool has_remaining() {
 		return remaining() > 0;
 	}
@@ -259,6 +267,12 @@ public:
 		return m_io_flag.test(IOFlag::IS_CONN_SUCCESS);
 	}
 
+	/**
+	 * @brief Sets the socket attachment. The attachment is a shared pointer to a SocketAttachment object.
+	 * It can be used to store additional information about the socket.
+	 * 
+	 * @param a A shared pointer to a SocketAttachment object.
+	 */
 	void attachment(std::shared_ptr<SocketAttachment>& a) {
 		m_attachment = a;
 	}
@@ -314,6 +328,16 @@ public:
 
 	std::shared_ptr<Socket> start_udp_server(int port, std::shared_ptr<SocketAttachment> attachment);
 	std::shared_ptr<Socket> start_multicast_server(const char* group_address, int port, std::shared_ptr<SocketAttachment> attachment);
+	/**
+	 * @brief Starts a TCP server on the specified port with the given socket attachment.
+	 * 
+	 * This function initializes and starts a TCP server that listens on the specified port.
+	 * It sets the attachment of the server's socket to the provided socket attachment.
+	 * 
+	 * @param port The port number on which the server will listen for incoming connections.
+	 * @param attachment A shared pointer to a SocketAttachment object that will be set as the server's attachment.
+	 * @return A shared pointer to a Socket object representing the started server.
+	 */
 	std::shared_ptr<Socket> start_server(int port, std::shared_ptr<SocketAttachment> attachment);
 	std::shared_ptr<Socket> start_client(const char* address, int port, std::shared_ptr<SocketAttachment> attachment);
 	std::shared_ptr<DatagramClientSocket> start_udp_client(const char* address, int port, std::shared_ptr<SocketAttachment> attachment);
