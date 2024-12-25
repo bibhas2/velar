@@ -261,7 +261,7 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, bool read_only, size_t
     m_limit = m_capacity;
     m_position = 0;
 #else
-    file_handle = ::open(file_name, read_only ? O_RDONLY : O_RDWR);
+    file_handle = ::open(file_name, read_only ? O_RDONLY : (O_CREAT | O_RDWR), 0666);
     
     if (file_handle < 0) {
         cleanup();
@@ -281,6 +281,16 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, bool read_only, size_t
 
     size_t file_size = sbuf.st_size;
     
+    if (max_size > file_size) {
+        //Extend the file to max_size.
+        if (ftruncate(file_handle, max_size) == -1) {
+            cleanup();
+            throw std::system_error(errno, std::generic_category(), "ftruncate() failed");
+            
+            return;
+        }
+    }
+
     void *start = ::mmap(nullptr, 
         max_size == 0 ? file_size : max_size, 
         read_only ? PROT_READ : (PROT_READ | PROT_WRITE), 
@@ -295,9 +305,13 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, bool read_only, size_t
         return;
     }
     
+    //We can close the file down now
+    ::close(file_handle);
+    file_handle = -1;
+
     m_array = (char*) start;
     m_capacity = (max_size == 0 ? file_size : max_size);
-    m_limit = capacity;
+    m_limit = m_capacity;
     m_position = 0;
 #endif
 }
@@ -327,7 +341,7 @@ void MappedByteBuffer::cleanup() {
     }
 #else
     if (m_array != NULL) {
-        if (::munmap((void*) m_array, capacity) < 0) {
+        if (::munmap((void*) m_array, m_capacity) < 0) {
             perror("munmap() failed");
         }
         
