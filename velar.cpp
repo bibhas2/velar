@@ -37,9 +37,9 @@ void ByteBuffer::put(const char* from, size_t offset, size_t length) {
         throw std::out_of_range("Insufficient space remaining.");
     }
 
-    ::memcpy(array + position, from + offset, length);
+    ::memcpy(m_array + m_position, from + offset, length);
 
-    position += length;
+    m_position += length;
 }
 
 void ByteBuffer::put(std::string_view sv) {
@@ -51,9 +51,9 @@ void ByteBuffer::put(char ch) {
         throw std::out_of_range("Insufficient space remaining.");
     }
 
-    array[position] = ch;
+    m_array[m_position] = ch;
 
-    ++position;
+    ++m_position;
 }
 
 void ByteBuffer::put(uint16_t i) {
@@ -91,9 +91,9 @@ void ByteBuffer::get(const char* to, size_t offset, size_t length) {
         throw std::out_of_range("Insufficient data remaining.");
     }
 
-    ::memcpy((void*) (to + offset), array + position, length);
+    ::memcpy((void*) (to + offset), m_array + m_position, length);
 
-    position += length;
+    m_position += length;
 }
 
 void ByteBuffer::get(char& ch) {
@@ -101,9 +101,9 @@ void ByteBuffer::get(char& ch) {
         throw std::out_of_range("Insufficient data remaining.");
     }
 
-    ch = array[position];
+    ch = m_array[m_position];
 
-    ++position;
+    ++m_position;
 }
 
 /*
@@ -120,9 +120,9 @@ void ByteBuffer::get(std::string_view& sv, size_t length) {
         throw std::out_of_range("Insufficient data remaining.");
     }
 
-    sv = { array + position, length };
+    sv = { m_array + m_position, length };
 
-    position += length;
+    m_position += length;
 }
 
 /*
@@ -139,9 +139,9 @@ void ByteBuffer::get(std::string_view& sv) {
         throw std::out_of_range("Insufficient data remaining.");
     }
 
-    sv = { array + position, remaining()};
+    sv = { m_array + m_position, remaining()};
 
-    position += remaining();
+    m_position += remaining();
 }
 
 void ByteBuffer::get(uint16_t& i) {
@@ -173,33 +173,33 @@ void ByteBuffer::get(uint64_t& i) {
 }
 
 HeapByteBuffer::HeapByteBuffer(size_t sz) {
-    array = (char*) ::malloc(sz);
+    m_array = (char*) ::malloc(sz);
 
-    if (array == NULL) {
+    if (m_array == NULL) {
         throw std::runtime_error("malloc() failed.");
     }
 
-    capacity = sz;
-    position = 0;
-    limit = sz;
+    m_capacity = sz;
+    m_position = 0;
+    m_limit = sz;
 }
 
 HeapByteBuffer::~HeapByteBuffer() {
-    if (array != NULL) {
-        ::free(array);
+    if (m_array != NULL) {
+        ::free(m_array);
 
-        array = NULL;
+        m_array = NULL;
     }
 }
 
 WrappedByteBuffer::WrappedByteBuffer(char* data, size_t length) {
-    array = data;
-    capacity = length;
-    limit = length;
-    position = 0;
+    m_array = data;
+    m_capacity = length;
+    m_limit = length;
+    m_position = 0;
 }
 
-MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only, size_t max_size) {
+MappedByteBuffer::MappedByteBuffer(const char* file_name, bool read_only, size_t max_size) {
 #ifdef _WIN32
     file_handle = ::CreateFileA(
         file_name, 
@@ -245,23 +245,23 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only, siz
         throw std::system_error(::GetLastError(), std::system_category(), "CreateFileMappingA failed.");
     }
 
-    array = (char*) ::MapViewOfFile(map_handle, 
+    m_array = (char*) ::MapViewOfFile(map_handle, 
         read_only ? FILE_MAP_READ : (FILE_MAP_WRITE),
         0, 
         0, 
         0);
 
-    if (array == NULL) {
+    if (m_array == NULL) {
         cleanup();
 
         throw std::system_error(::GetLastError(), std::system_category(), "MapViewOfFile failed.");
     }
 
-    capacity = (max_size == 0 ? file_size.QuadPart : max_size);
-    limit = capacity;
-    position = 0;
+    m_capacity = (max_size == 0 ? file_size.QuadPart : max_size);
+    m_limit = m_capacity;
+    m_position = 0;
 #else
-    file_handle = ::open(file_name, read_only ? O_RDONLY : O_RDWR);
+    file_handle = ::open(file_name, read_only ? O_RDONLY : (O_CREAT | O_RDWR), 0666);
     
     if (file_handle < 0) {
         cleanup();
@@ -281,6 +281,16 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only, siz
 
     size_t file_size = sbuf.st_size;
     
+    if (max_size > file_size) {
+        //Extend the file to max_size.
+        if (ftruncate(file_handle, max_size) == -1) {
+            cleanup();
+            throw std::system_error(errno, std::generic_category(), "ftruncate() failed");
+            
+            return;
+        }
+    }
+
     void *start = ::mmap(nullptr, 
         max_size == 0 ? file_size : max_size, 
         read_only ? PROT_READ : (PROT_READ | PROT_WRITE), 
@@ -295,10 +305,14 @@ MappedByteBuffer::MappedByteBuffer(const char* file_name, boolean read_only, siz
         return;
     }
     
-    array = (char*) start;
-    capacity = (max_size == 0 ? file_size : max_size);
-    limit = capacity;
-    position = 0;
+    //We can close the file down now
+    ::close(file_handle);
+    file_handle = -1;
+
+    m_array = (char*) start;
+    m_capacity = (max_size == 0 ? file_size : max_size);
+    m_limit = m_capacity;
+    m_position = 0;
 #endif
 }
 
@@ -311,14 +325,14 @@ void MappedByteBuffer::cleanup() {
     BOOL status;
 
     if (map_handle != NULL) {
-        if (array != NULL) {
-            status = ::UnmapViewOfFile(array);
+        if (m_array != NULL) {
+            status = ::UnmapViewOfFile(m_array);
         }
 
         status = ::CloseHandle(map_handle);
 
         map_handle = NULL;
-        array = NULL;
+        m_array = NULL;
     }
     if (file_handle != INVALID_HANDLE_VALUE) {
         status = ::CloseHandle(file_handle);
@@ -326,12 +340,12 @@ void MappedByteBuffer::cleanup() {
         file_handle = INVALID_HANDLE_VALUE;
     }
 #else
-    if (array != NULL) {
-        if (::munmap((void*) array, capacity) < 0) {
+    if (m_array != NULL) {
+        if (::munmap((void*) m_array, m_capacity) < 0) {
             perror("munmap() failed");
         }
         
-        array = NULL;
+        m_array = NULL;
     }
     
     if (file_handle >= 0) {
@@ -943,7 +957,7 @@ int Socket::read(ByteBuffer& b) {
 #ifdef _WIN32
     int bytes_read = ::recv(
         m_fd,
-        b.array + b.position,
+        b.array() + b.position(),
         b.remaining(),
         0);
 
@@ -967,7 +981,7 @@ int Socket::read(ByteBuffer& b) {
 #else
     int bytes_read = ::read(
         m_fd,
-        b.array + b.position,
+        b.array() + b.position(),
         b.remaining());
 
     if (bytes_read < 0) {
@@ -997,7 +1011,7 @@ int Socket::read(ByteBuffer& b) {
     }
 
     //Forward the position
-    b.position += bytes_read;
+    b.position(b.position() + bytes_read);
 
     return bytes_read;
 }
@@ -1011,7 +1025,7 @@ int Socket::recvfrom(ByteBuffer& b, sockaddr* from, int* from_len) {
 #ifdef _WIN32
     int bytes_read = ::recvfrom(
         m_fd,
-        b.array + b.position,
+        b.array() + b.position(),
         b.remaining(),
         0,
         from,
@@ -1047,7 +1061,7 @@ int Socket::recvfrom(ByteBuffer& b, sockaddr* from, int* from_len) {
 #else
     int bytes_read = ::recvfrom(
         m_fd,
-        b.array + b.position,
+        b.array() + b.position(),
         b.remaining(),
         0,
         from,
@@ -1081,7 +1095,7 @@ int Socket::recvfrom(ByteBuffer& b, sockaddr* from, int* from_len) {
     }
 
     //Forward the position
-    b.position += bytes_read;
+    b.position(b.position() + bytes_read);
 
     return bytes_read;
 }
@@ -1116,7 +1130,7 @@ int Socket::write(ByteBuffer& b) {
 #ifdef _WIN32
     int bytes_written = ::send(
         m_fd,
-        b.array + b.position,
+        b.array() + b.position(),
         b.remaining(),
         0);
 
@@ -1140,7 +1154,7 @@ int Socket::write(ByteBuffer& b) {
 #else
     int bytes_written = ::write(
         m_fd,
-        b.array + b.position,
+        b.array() + b.position(),
         b.remaining());
 
     if (bytes_written < 0) {
@@ -1170,7 +1184,7 @@ int Socket::write(ByteBuffer& b) {
     }
 
     //Forward the position
-    b.position += bytes_written;
+    b.position(b.position() + bytes_written);
 
     return bytes_written;
 }
@@ -1183,7 +1197,7 @@ int Socket::sendto(ByteBuffer& b, const struct sockaddr* to, int to_len) {
 #ifdef _WIN32
     int bytes_written = ::sendto(
         m_fd,
-        b.array + b.position,
+        b.array() + b.position(),
         b.remaining(),
         0,
         to,
@@ -1209,7 +1223,7 @@ int Socket::sendto(ByteBuffer& b, const struct sockaddr* to, int to_len) {
 #else
     int bytes_written = ::sendto(
         m_fd,
-        b.array + b.position,
+        b.array() + b.position(),
         b.remaining(),
         0,
         to,
@@ -1242,7 +1256,7 @@ int Socket::sendto(ByteBuffer& b, const struct sockaddr* to, int to_len) {
     }
 
     //Forward the position
-    b.position += bytes_written;
+    b.position(b.position() + bytes_written);
 
     return bytes_written;
 }
